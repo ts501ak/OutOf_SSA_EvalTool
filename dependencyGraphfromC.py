@@ -3,6 +3,13 @@ import re
 import iplotx as ix
 import matplotlib.pyplot as pp
 
+def fnv1a_64(s):
+    h = 0xcbf29ce484222325  # 64-bit offset basis
+    fnv_prime = 0x100000001b3
+    for c in s:
+        h ^= ord(c)
+        h = (h * fnv_prime) & 0xFFFFFFFFFFFFFFFF  # modulo 2^64
+    return f"{h:016x}"  # 16-character hex string
 
 class DependencyGraphfromCFunction:
     def __init__(self):
@@ -11,8 +18,8 @@ class DependencyGraphfromCFunction:
         self.__regs = []
         self.__regs.append(re.compile(r"//.*")) #No Comments
         self.__regs.append(re.compile(r"/\*.*?\*/",re.DOTALL)) #No Multiline Comments
-        self.__regs.append(re.compile(r'"(\\.|[^"\\])*"')) #No Strings --> To be removed
-        self.__regs.append(re.compile(r"'(\\.|[^'\\])*'")) #No Strings --> To be removed
+        #self.__regs.append(re.compile(r'"(\\.|[^"\\])*"')) #No Strings --> To be removed
+        #self.__regs.append(re.compile(r"'(\\.|[^'\\])*'")) #No Strings --> To be removed
         self.__stringIdent = re.compile(r"\$[a-fA-F0-9]{64}\$")
         self.__doubleNL = re.compile(r"\n\n+")
         self.__doubleWS = re.compile(r"  +")
@@ -50,11 +57,115 @@ class DependencyGraphfromCFunction:
     def getDependencyGraph(self,cFunc : str) -> nx.DiGraph:
         """takes the code of a single function as ascii and builds the dependency graph for it"""
 
-
         self.__func = cFunc
         self.__prepareFunc()
+        self._process_strings_to_hashes()
         self.__counter = 0
         return self.__constructDepGraph()
+
+    def _fnv1a_64(self, s):
+        """
+        Computes the FNV-1a 64-bit hash of a string.
+        """
+        h = 0xcbf29ce484222325
+        fnv_prime = 0x100000001b3
+        
+        # Use a mask to enforce 64-bit behavior for compatibility 
+        MASK_64 = 0xFFFFFFFFFFFFFFFF 
+        
+        for c in s:
+            h ^= ord(c)
+            h = (h * fnv_prime) & MASK_64
+            
+        return f"{h:016x}"
+
+    def _process_strings_to_hashes(self):
+        """
+        Processes code stored in self.__func to replace concatenated 
+        string literals with their FNV-1a 64-bit hash.
+        """
+        code = self.__func
+        result = []
+        i = 0
+        n = len(code)
+
+        while i < n:
+            c = code[i]
+            prefix = ''
+            start_q = -1 
+            
+            # Identify Prefix and First Quote
+            if c == '"':
+                # String literal (e.g. "Hello")
+                prefix = ''
+                start_q = i
+            elif c == 'L' and i + 1 < n and code[i+1] == '"':
+                # Wide string literal (e.g. L"Hello")
+                prefix = 'L'
+                start_q = i + 1
+            
+            # Process Concatenated String Group
+            if start_q != -1:
+                i = start_q + 1 
+                combined = ''
+                
+                # This loop handles adjacent literals of the same type
+                while start_q < n and code[start_q] == '"':
+                    
+                    # Read string content
+                    s = ''
+                    while i < n:
+                        if code[i] == '"':
+                            i += 1
+                            break
+
+                        elif code[i] == '\\' and i+1 < n:
+                            # Skip spaces after a \ for a line break
+                            if code[i+1].isspace():
+                                i += 1
+                                while i < n and code[i].isspace():
+                                    i += 1
+
+                            # Handle escaped chars like \, \n
+                            else:
+                                s += code[i:i+2]
+                                i += 2
+                        else:
+                            s += code[i]
+                            i += 1
+
+                    combined += s.encode('utf-8').decode('unicode_escape')
+                    
+                    # Skip whitespace/newlines between adjacent literals
+                    while i < n and code[i].isspace():
+                            i += 1
+
+                    next_start_q = -1
+                    
+                    # Check for new string 
+                    if prefix == '' and i < n and code[i] == '"':
+                        next_start_q = i
+                        i += 1 
+                        
+                    # Check for new wide string 
+                    elif prefix == 'L' and i + 1 < n and code[i] == 'L' and code[i+1] == '"':
+                        next_start_q = i + 1
+                        i += 2 
+                        
+                    if next_start_q == -1:
+                        break
+                    else:
+                        start_q = next_start_q 
+                        
+                # Comment out and prefix with 'L' if desired
+                combined += prefix 
+                hashed = fnv1a_64(combined)
+                result.append(f'§{hashed}§')
+            else:    
+                result.append(c)
+                i += 1
+                
+        self.__func = ''.join(result)
 
     def __prepareFunc(self):
         """prepares the code for processing the dependency graph e.g. deletes comments, removes unnecessary stylistic nuances etc., so that we don't have to take
@@ -217,7 +328,7 @@ class DependencyGraphfromCFunction:
         pass
 
 def main():
-    with open("/home/jannis/Desktop/c-Code.txt") as f:
+    with open("./a.c") as f:
         cCode = f.read()
     dgrc = DependencyGraphfromCFunction()
     dg = dgrc.getDependencyGraph(cCode)
