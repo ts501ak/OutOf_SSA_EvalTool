@@ -18,9 +18,9 @@ class DependencyGraphfromCFunction:
         self.__regs = []
         self.__regs.append(re.compile(r"//.*")) #No Comments
         self.__regs.append(re.compile(r"/\*.*?\*/",re.DOTALL)) #No Multiline Comments
-        #self.__regs.append(re.compile(r'"(\\.|[^"\\])*"')) #No Strings --> To be removed
-        #self.__regs.append(re.compile(r"'(\\.|[^'\\])*'")) #No Strings --> To be removed
-        self.__stringIdent = re.compile(r"\$[a-fA-F0-9]{64}\$")
+        #self.__regs.append(re.compile(r'"(\\.|[^"\\])*"')) #No Strings --> Strings are hashed by now and seen as a normal constant
+        #self.__regs.append(re.compile(r"'(\\.|[^'\\])*'")) #No Strings 
+        self.__stringIdent = re.compile(r"§§STR§§[a-fA-F0-9]{16}§")
         self.__doubleNL = re.compile(r"\n\n+")
         self.__doubleWS = re.compile(r"  +")
         self.__col = re.compile(r" *, *")
@@ -161,7 +161,7 @@ class DependencyGraphfromCFunction:
                 # Comment out and prefix with 'L' if desired
                 combined += prefix 
                 hashed = fnv1a_64(combined)
-                result.append(f'§{hashed}§')
+                result.append(f'§§STR§§{hashed}§')
             else:    
                 result.append(c)
                 i += 1
@@ -185,6 +185,7 @@ class DependencyGraphfromCFunction:
         self.__func = self.__cbo.sub(r"{",self.__func)
         self.__func = self.__cbc.sub(r"}",self.__func)
         self.__func = self.__sc.sub(r";",self.__func)
+        self._process_strings_to_hashes()
         self.__func = self.__wsBeginning.sub(r"\n",self.__func)
         self.__func = self.__wsEquals.sub(r"=",self.__func)
         self.__func = self.__Union.sub(r"",self.__func)
@@ -314,11 +315,11 @@ class DependencyGraphfromCFunction:
         pass
 
 def main():
-    with open("./a.c") as f:
+    """with open("~/Desktop/c-Code.txt") as f:
         cCode = f.read()
     dgrc = DependencyGraphfromCFunction()
     dg = dgrc.getDependencyGraph(cCode)
-    with open("/home/jannis/Desktop/rels.txt","w") as f:
+    with open("~/Desktop/rels.txt","w") as f:
         for x in dg.edges():
             f.write(str(x))
             f.write("\n")
@@ -326,7 +327,8 @@ def main():
     nx.draw_networkx_nodes(dg,pso,dg.nodes())
     nx.draw_networkx_edges(dg,pso,dg.edges(),arrows=True,arrowstyle="->")
     nx.draw_networkx_labels(dg,pso)
-    pp.show()
+    pp.show()"""
+    pass
 
 
 if __name__ == "__main__":
