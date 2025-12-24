@@ -33,6 +33,7 @@ class DependencyGraphfromCFunction:
         self.__sc = re.compile(r" *; *")
         self.__tab = re.compile(r"\t+")
         self.__wsBeginning = re.compile(r"\n +")
+        self.__newLineNoSC = re.compile(r"(?<!;)[ \t]*\n")
         self.__wsEquals = re.compile(r" *= *")
         self.__assignOperators = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="]
         self.__operators = ["+","-", "*", "/", "%", "==", "!=", "[^-]>", "<", ">=", "<=", "&&", "||", "&", "|", "^", "<<", ">>"]
@@ -43,13 +44,14 @@ class DependencyGraphfromCFunction:
         self.__funcEnd = re.compile(r"[A-Za-z_]\w*$")
         self.__funcNorm = re.compile(r"[A-Za-z_]\w*\(")
         self.__oneequals = re.compile("[^=]=[^=]")
-        self.__Constant = re.compile(r"^ *(?P<num>(0x([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?|[0-9]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?|[0-9]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?|0b[10]+|(\+|-)?[0-9]+))")
+        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?)|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?)|(?P<Dec2>[0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?)|(?P<Bin>0[B|b][10]+)|(?P<Oct>0[0-7]*)|(?P<Dec3>[1-9_][0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?)))")
         self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\])"
         self.__specialAccess = re.compile(r" *(?P<first>[A-Za-z_]\w*) *((\.|->) *[A-Za-z_]\w*)*")
         self.__numberbegin = re.compile(r"^ *[0-9]")
         self.__ternaryAssig = re.compile(r"\?(?P<ifTrue>[^:\n]*):(?P<ifFalse>[^;\n]*)")
         self.__dotVar = re.compile(r"(^ *\. *[A-Za-z_]\w*|^ *-> *[A-Za-z_]\w*)")
         self.__counter = 0
+        self.__dels = re.compile(r"([ \.Pp\+\-])")
         self.__newLine = re.compile(" *\n *")
         self.__Union = re.compile(r"(union.*?)(\} *;\n)",re.DOTALL)
         
@@ -60,7 +62,6 @@ class DependencyGraphfromCFunction:
 
         self.__func = cFunc
         self.__prepareFunc()
-        self._process_strings_to_hashes()
         self.__counter = 0
         return self.__constructDepGraph()
 
@@ -168,6 +169,28 @@ class DependencyGraphfromCFunction:
                 
         self.__func = ''.join(result)
 
+    def __constantToDec(self,inp : str):
+        matO = self.__Constant.search(inp)
+        if matO:
+            if matO.group("Dec"):
+                return matO.group("num")
+            elif matO.group("Dec2"):
+                return matO.group("num")
+            elif matO.group("Dec3"):
+                return matO.group("num")
+            elif hex := matO.group("Hex"):
+                return str(float.fromhex(hex))
+            elif bin := matO.group("Bin"):
+                bin = bin[2:]
+                return int(bin,2)
+            elif oct := matO.group("Oct"):
+                if oct == "0":
+                    return 0
+                oct = oct[1:]
+                return int(oct,8)
+        
+        raise Exception(f"Couldn't convert {inp} to Dec!")
+
     def __prepareFunc(self):
         """prepares the code for processing the dependency graph e.g. deletes comments, removes unnecessary stylistic nuances etc., so that we don't have to take
             it into consideration in every single regex in the main construction method"""
@@ -185,6 +208,7 @@ class DependencyGraphfromCFunction:
         self.__func = self.__cbo.sub(r"{",self.__func)
         self.__func = self.__cbc.sub(r"}",self.__func)
         self.__func = self.__sc.sub(r";",self.__func)
+        self.__func = self.__newLineNoSC.sub(r" ",self.__func)
         self._process_strings_to_hashes()
         self.__func = self.__wsBeginning.sub(r"\n",self.__func)
         self.__func = self.__wsEquals.sub(r"=",self.__func)
@@ -252,7 +276,8 @@ class DependencyGraphfromCFunction:
         self.__counter += 1
         return nodeName
 
-    def __getVariablesOfString(self,strIn : str,lhs:str):
+    def __getVariablesOfString(self,strIn : str,lhs:str,isFunc = False):
+        funcArgCount = 0
         instr = re.split(self.__pat,strIn)
         instr = [i for i in instr if (i != '') and (i != None)]
         instr.append(";")
@@ -264,16 +289,29 @@ class DependencyGraphfromCFunction:
             elif (tok in self.__operators) or (tok == ","):
                 pass
             elif (const := self.__Constant.search(tok)) != None:
-                self.depGraph.add_edge(const.group("num"),lhs,type="const")
+                const = self.__constantToDec(const.group("num"))
+                if not isFunc:
+                    self.depGraph.add_edge(const,lhs,type="const")
+                else:
+                    self.depGraph.add_edge(const,lhs,type="const",nr = funcArgCount)
+                    funcArgCount += 1
                 
             elif (tok == "(") or (tok == ")"):
                 pass
             elif string := self.__stringIdent.search(tok):
-                self.depGraph.add_edge(string.group(0),lhs,type="strConst")
+                if not isFunc:
+                    self.depGraph.add_edge(string.group(0),lhs,type="strConst")
+                else:
+                    self.depGraph.add_edge(string.group(0),lhs,type="strConst",nr = funcArgCount)
+                    funcArgCount += 1
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "("):
                 funcName = f"{f.group(0)}${self.__counter}"
                 self.__counter += 1
-                self.depGraph.add_edge(funcName,lhs,type="func")
+                if not isFunc:
+                    self.depGraph.add_edge(funcName,lhs,type="func")
+                else:
+                    self.depGraph.add_edge(funcName,lhs,type="func", nr = funcArgCount)
+                    funcArgCount += 1
                 brcount = 0
                 for i in range(count+1,len(instr)-1):
                     if instr[i] == "(":
@@ -284,12 +322,16 @@ class DependencyGraphfromCFunction:
                         brcount = i
                         break
                 rest = "".join(instr[count+1:brcount+1])
-                self.__getVariablesOfString(rest,funcName)
+                self.__getVariablesOfString(rest,funcName,True)
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
                 funcName = f"{f.group(0)}${self.__counter}"
                 self.__counter += 1
-                self.depGraph.add_edge(funcName,lhs,type="array")
+                if not isFunc:
+                    self.depGraph.add_edge(funcName,lhs,type="array")
+                else:
+                    self.depGraph.add_edge(funcName,lhs,type="array",nr = funcArgCount)
+                    funcArgCount += 1
                 brcount = 0
                 for i in range(count+1,len(instr)-1):
                     if instr[i] == "[":
@@ -304,7 +346,11 @@ class DependencyGraphfromCFunction:
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
                 
             elif (v := self.__specialAccess.search(tok)) and (not self.__numberbegin.search(tok)) and (not self.__Constant.search(tok)):
-                self.depGraph.add_edge(v.group("first"),lhs,type="var")
+                if not isFunc:
+                    self.depGraph.add_edge(v.group("first"),lhs,type="var")
+                else:
+                    self.depGraph.add_edge(v.group("first"),lhs,type="var",nr = funcArgCount)
+                    funcArgCount += 1
             else:
                 pass
             count += 1
