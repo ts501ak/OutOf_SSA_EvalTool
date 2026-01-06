@@ -44,7 +44,7 @@ class DependencyGraphfromCFunction:
         self.__funcEnd = re.compile(r"[A-Za-z_]\w*$")
         self.__funcNorm = re.compile(r"[A-Za-z_]\w*\(")
         self.__oneequals = re.compile("[^=]=[^=]")
-        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?)|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?)|(?P<Dec2>[0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?)|(?P<Bin>0[B|b][10]+)|(?P<Oct>0[0-7]*)|(?P<Dec3>[1-9_][0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?)))")
+        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9_][0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
         self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\])"
         self.__specialAccess = re.compile(r" *(?P<first>[A-Za-z_]\w*) *((\.|->) *[A-Za-z_]\w*)*")
         self.__numberbegin = re.compile(r"^ *[0-9]")
@@ -188,6 +188,7 @@ class DependencyGraphfromCFunction:
                     return 0
                 oct = oct[1:]
                 return int(oct,8)
+            return matO.group("num")
         
         raise Exception(f"Couldn't convert {inp} to Dec!")
 
@@ -361,11 +362,12 @@ class DependencyGraphfromCFunction:
         pass
 
 def main():
-    """with open("~/Desktop/c-Code.txt") as f:
+    """
+    with open("c-Code.txt") as f:
         cCode = f.read()
     dgrc = DependencyGraphfromCFunction()
     dg = dgrc.getDependencyGraph(cCode)
-    with open("~/Desktop/rels.txt","w") as f:
+    with open("rels.txt","w") as f:
         for x in dg.edges():
             f.write(str(x))
             f.write("\n")
