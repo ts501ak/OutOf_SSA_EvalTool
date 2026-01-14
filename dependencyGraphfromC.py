@@ -1,3 +1,4 @@
+from typing import DefaultDict
 import networkx as nx
 import re
 import matplotlib.pyplot as pp
@@ -44,7 +45,7 @@ class DependencyGraphfromCFunction:
         self.__funcEnd = re.compile(r"[A-Za-z_]\w*$")
         self.__funcNorm = re.compile(r"[A-Za-z_]\w*\(")
         self.__oneequals = re.compile("[^=]=[^=]")
-        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9_][0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
+        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9_][0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
         self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\])"
         self.__specialAccess = re.compile(r" *(?P<first>[A-Za-z_]\w*) *((\.|->) *[A-Za-z_]\w*)*")
         self.__numberbegin = re.compile(r"^ *[0-9]")
@@ -182,12 +183,14 @@ class DependencyGraphfromCFunction:
                 return str(float.fromhex(hex))
             elif bin := matO.group("Bin"):
                 bin = bin[2:]
-                return int(bin,2)
+                return str(int(bin,2))
             elif oct := matO.group("Oct"):
                 if oct == "0":
-                    return 0
+                    return "0"
                 oct = oct[1:]
-                return int(oct,8)
+                return str(int(oct,8))
+            elif nu := matO.group("NULLL"):
+                return "0"
             return matO.group("num")
         
         raise Exception(f"Couldn't convert {inp} to Dec!")
@@ -234,13 +237,16 @@ class DependencyGraphfromCFunction:
                     instr = instr[start + len(assi.group(0)):]
                     if ta := self.__ternaryAssig.search(instr):
                         nodeName = self.__getVarName()
+                        self.depGraph.add_node(nodeName,type=lhs)
                         self.depGraph.add_edge(nodeName,lhs,type="assig")
                         self.__getVariablesOfString(self.__getBracketGroup(ta.group("ifTrue")),nodeName)
                         nodeName = self.__getVarName()
+                        self.depGraph.add_node(nodeName,type=lhs)
                         self.depGraph.add_edge(nodeName,lhs,type="assig")
                         self.__getVariablesOfString(self.__getBracketGroup(ta.group("ifFalse")),nodeName)
                     else:
                         nodeName = self.__getVarName()
+                        self.depGraph.add_node(nodeName,type=lhs)
                         self.depGraph.add_edge(nodeName,lhs,type="assig")
                         self.__getVariablesOfString(instr,nodeName)
             
@@ -291,6 +297,8 @@ class DependencyGraphfromCFunction:
                 pass
             elif (const := self.__Constant.search(tok)) != None:
                 const = self.__constantToDec(const.group("num"))
+                if "." not in const:
+                    const = "".join([const,".0"])
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
                 else:
@@ -359,23 +367,87 @@ class DependencyGraphfromCFunction:
     
 
     def areSimilar(self,g1 :nx.DiGraph, g2 : nx.DiGraph):
+        a,b = self.__getSameVarsfromFunctionCalls(g1,g2)
+        for x in a.keys():
+            print(x,a[x])
+        for y in b.keys():
+            print(y,b[y])
         pass
 
+    def __getFuncArgumentsFromGraph(self,g : nx.DiGraph,node : str):
+        funcSig = []
+        varList = []
+        for argument in sorted(list(g.in_edges(node,data=True)),key=lambda x : x[2]["nr"]):
+            match argument[2]["type"]:
+                case "const" | "strConst":
+                    funcSig.append(argument[0])
+                case "func":
+                    fs, vl = self.__getFuncArgumentsFromGraph(g,argument[0])
+                    funcSig.append("(")
+                    funcSig.extend(fs)
+                    funcSig.append(")")
+                    varList.extend(vl)  
+                case "array":
+                    funcSig.append("a")
+                    varList.append(argument[0].split("$")[0])
+                case "var":
+                    funcSig.append("v")
+                    varList.append(argument[0])
+        return funcSig, varList
+
+    def __getSameVarsfromFunctionCalls(self, g1 : nx.DiGraph, g2 : nx.DiGraph):
+        equivalenceDictG1 = DefaultDict(lambda : [])
+        equivalenceDictG2 = DefaultDict(lambda : [])
+        g1Dict = DefaultDict(list)
+        g2Dict = DefaultDict(list)
+        assignmentDict = DefaultDict(list)
+        typeDict = nx.get_node_attributes(g1,"type","None")
+        for funcCall in g1.edges(data="type",default=""):
+            if funcCall[2] == "func":
+                fs, vl = self.__getFuncArgumentsFromGraph(g1,funcCall[0])
+                h = hash(tuple(fs))
+                #print("Function",funcCall[0],fs,vl, h)
+                if (lhs := typeDict[funcCall[1]]) != "None":
+                    assignmentDict[h].append(lhs)
+                g1Dict[h].append(vl)
+        typeDict = nx.get_node_attributes(g2,"type","None")
+        for funcCall in g2.edges(data="type",default=""):
+            if funcCall[2] == "func":
+                fs, vl = self.__getFuncArgumentsFromGraph(g2,funcCall[0])
+                h = hash(tuple(fs))
+                #print("Function",funcCall[0],fs,vl, h)
+
+                if (lhs := typeDict[funcCall[1]]) != "None":
+                    assignmentDict[h].append(lhs)
+                g2Dict[h].append(vl)
+        for x in g1Dict.keys():
+            if (len(g1Dict[x]) == 1) and (x in g2Dict.keys()) and (len(g2Dict[x]) == 1):
+                for y in range(len(g1Dict[x][0])):
+                        if g2Dict[x][0][y] not in equivalenceDictG1[g1Dict[x][0][y]]:
+                            equivalenceDictG1[g1Dict[x][0][y]].append(g2Dict[x][0][y])
+                        if g1Dict[x][0][y] not in equivalenceDictG2[g2Dict[x][0][y]]:
+                            equivalenceDictG2[g2Dict[x][0][y]].append(g1Dict[x][0][y])           
+                if len(assignmentDict[x]) == 2:
+                    equivalenceDictG1[assignmentDict[x][0]].append(assignmentDict[x][1])
+                    equivalenceDictG2[assignmentDict[x][1]].append(assignmentDict[x][0])
+
+        return equivalenceDictG1, equivalenceDictG2
+
+
 def main():
-    """
-    with open("c-Code.txt") as f:
-        cCode = f.read()
+    """with open("./ex1.txt") as f:
+        c1 = f.read()
+        print(c1)
+    with open("./ex2.txt") as f:
+        c2 = f.read()
+        print(c2)
+
     dgrc = DependencyGraphfromCFunction()
-    dg = dgrc.getDependencyGraph(cCode)
-    with open("rels.txt","w") as f:
-        for x in dg.edges():
-            f.write(str(x))
-            f.write("\n")
-    pso = nx.spring_layout(dg)
-    nx.draw_networkx_nodes(dg,pso,dg.nodes())
-    nx.draw_networkx_edges(dg,pso,dg.edges(),arrows=True,arrowstyle="->")
-    nx.draw_networkx_labels(dg,pso)
-    pp.show()"""
+    c1 = dgrc.getDependencyGraph(c1)
+    c2 = dgrc.getDependencyGraph(c2)
+    dgrc.areSimilar(c1,c2)
+    """
+   
     pass
 
 
