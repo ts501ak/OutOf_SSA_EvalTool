@@ -174,24 +174,24 @@ class DependencyGraphfromCFunction:
         matO = self.__Constant.search(inp)
         if matO:
             if matO.group("Dec"):
-                return matO.group("num")
+                return str(float(matO.group("num")))
             elif matO.group("Dec2"):
-                return matO.group("num")
+                return str(float(matO.group("num")))
             elif matO.group("Dec3"):
-                return matO.group("num")
+                return str(float(matO.group("num")))
             elif hex := matO.group("Hex"):
                 return str(float.fromhex(hex))
             elif bin := matO.group("Bin"):
                 bin = bin[2:]
-                return str(int(bin,2))
+                return str(float(bin,2))
             elif oct := matO.group("Oct"):
                 if oct == "0":
                     return "0"
                 oct = oct[1:]
-                return str(int(oct,8))
+                return str(float(oct,8))
             elif nu := matO.group("NULLL"):
                 return "0"
-            return matO.group("num")
+            return str(float(matO.group("num")))
         
         raise Exception(f"Couldn't convert {inp} to Dec!")
 
@@ -297,8 +297,6 @@ class DependencyGraphfromCFunction:
                 pass
             elif (const := self.__Constant.search(tok)) != None:
                 const = self.__constantToDec(const.group("num"))
-                if "." not in const:
-                    const = "".join([const,".0"])
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
                 else:
@@ -335,6 +333,7 @@ class DependencyGraphfromCFunction:
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
                 funcName = f"{f.group(0)}${self.__counter}"
+                self.depGraph.add_edge(funcName,f.group(0),type="RefferenceArray")
                 self.__counter += 1
                 if not isFunc:
                     self.depGraph.add_edge(funcName,lhs,type="array")
@@ -367,7 +366,7 @@ class DependencyGraphfromCFunction:
     
 
     def areSimilar(self,g1 :nx.DiGraph, g2 : nx.DiGraph):
-        a,b = self.__getSameVarsfromFunctionCalls(g1,g2)
+        a,b = self.getSameVarsfromFunctionCalls(g1,g2)
         for x in a.keys():
             print(x,a[x])
         for y in b.keys():
@@ -395,9 +394,9 @@ class DependencyGraphfromCFunction:
                     varList.append(argument[0])
         return funcSig, varList
 
-    def __getSameVarsfromFunctionCalls(self, g1 : nx.DiGraph, g2 : nx.DiGraph):
-        equivalenceDictG1 = DefaultDict(lambda : [])
-        equivalenceDictG2 = DefaultDict(lambda : [])
+    def getSameVarsfromFunctionCalls(self, g1 : nx.DiGraph, g2 : nx.DiGraph):
+        equivalenceDictSure = DefaultDict(lambda : [])
+        equivalenceDictUnsure = DefaultDict(lambda : [])
         g1Dict = DefaultDict(list)
         g2Dict = DefaultDict(list)
         assignmentDict = DefaultDict(list)
@@ -423,19 +422,19 @@ class DependencyGraphfromCFunction:
         for x in g1Dict.keys():
             if (len(g1Dict[x]) == 1) and (x in g2Dict.keys()) and (len(g2Dict[x]) == 1):
                 for y in range(len(g1Dict[x][0])):
-                        if g2Dict[x][0][y] not in equivalenceDictG1[g1Dict[x][0][y]]:
-                            equivalenceDictG1[g1Dict[x][0][y]].append(g2Dict[x][0][y])
-                        if g1Dict[x][0][y] not in equivalenceDictG2[g2Dict[x][0][y]]:
-                            equivalenceDictG2[g2Dict[x][0][y]].append(g1Dict[x][0][y])           
+                        #if g1Dict[x][0][y] not in equivalenceDictSure[g2Dict[x][0][y]]:
+                        #    equivalenceDictSure[g2Dict[x][0][y]].append(g1Dict[x][0][y]) 
+                        if g2Dict[x][0][y] not in equivalenceDictSure[g1Dict[x][0][y]]:
+                            equivalenceDictSure[g1Dict[x][0][y]].append(g2Dict[x][0][y]) 
                 if len(assignmentDict[x]) == 2:
-                    equivalenceDictG1[assignmentDict[x][0]].append(assignmentDict[x][1])
-                    equivalenceDictG2[assignmentDict[x][1]].append(assignmentDict[x][0])
+                    equivalenceDictUnsure[assignmentDict[x][0]].append(assignmentDict[x][1])
+                    #equivalenceDictUnsure[assignmentDict[x][1]].append(assignmentDict[x][0])
 
-        return equivalenceDictG1, equivalenceDictG2
+        return equivalenceDictSure, equivalenceDictUnsure
 
 
 def main():
-    """with open("./ex1.txt") as f:
+    with open("./ex1.txt") as f:
         c1 = f.read()
         print(c1)
     with open("./ex2.txt") as f:
@@ -446,7 +445,7 @@ def main():
     c1 = dgrc.getDependencyGraph(c1)
     c2 = dgrc.getDependencyGraph(c2)
     dgrc.areSimilar(c1,c2)
-    """
+    
    
     pass
 
