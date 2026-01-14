@@ -333,7 +333,7 @@ class DependencyGraphfromCFunction:
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
                 funcName = f"{f.group(0)}${self.__counter}"
-                self.depGraph.add_edge(funcName,f.group(0),type="RefferenceArray")
+                self.depGraph.add_edge(funcName,f.group(0),type="ReferenceArray")
                 self.__counter += 1
                 if not isFunc:
                     self.depGraph.add_edge(funcName,lhs,type="array")
