@@ -445,8 +445,6 @@ def main():
     c1 = dgrc.getDependencyGraph(c1)
     c2 = dgrc.getDependencyGraph(c2)
     dgrc.areSimilar(c1,c2)
-    
-   
     pass
 
 
