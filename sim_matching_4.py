@@ -1,6 +1,6 @@
 import networkx as nx
 from typing import DefaultDict, Dict, Set, Tuple
-from dependencyGraphfromC import DependencyGraphfromCFunction 
+from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs
 
 class SimilarityMatching:
     MATCH_THRESHOLD = 0.5          
@@ -8,10 +8,12 @@ class SimilarityMatching:
     WEIGHT_PROXIMITY_DECAY = 0.1
     WEIGHT_HINT_BOOST = 0.15 
 
-    def __init__(self, src_graph: nx.DiGraph, decomp_graph: nx.DiGraph):
+    def __init__(self, src_graph: nx.DiGraph, src_Code : str, decomp_graph: nx.DiGraph, decomp_Code : str):
         self._src_graph = src_graph
         self._decomp_graph = decomp_graph
-        
+        self._src_Code = src_Code
+        self._decomp_Code = decomp_Code
+
         self._init_mapping()
         self._match_iterative()
 
@@ -32,7 +34,8 @@ class SimilarityMatching:
         self.hint_mapping = {} 
         self.src_unknowns =  self._calc_unknown_nodes(self._src_graph)
         self.decomp_unknowns = self._calc_unknown_nodes(self._decomp_graph)
-        safe_matches, unsafe_matches = self._getSameVarsfromFunctionCalls(self._src_graph, self._decomp_graph)
+        compObj = CompareGraphs(self._src_Code,self._decomp_Code)
+        safe_matches, unsafe_matches = compObj.getSameVars()
 
         for src_var, decomp_vars_list in safe_matches.items():
             if decomp_vars_list:
@@ -47,80 +50,6 @@ class SimilarityMatching:
             for dc in decomp_candidates:
                 self.hint_mapping[src_var].add(dc)
 
-    def _getFuncArgumentsFromGraph(self, g: nx.DiGraph, node: str):
-        funcSig = []
-        varList = []
-        for argument in sorted(list(g.in_edges(node, data=True)), key=lambda x: x[2]["nr"]):
-            arg_type = argument[2]["type"]
-            arg_node = argument[0]
-            
-            if arg_type in {"const", "strConst"}:
-                funcSig.append(arg_node)
-            elif arg_type == "func":
-                fs, vl = self._getFuncArgumentsFromGraph(g, arg_node)
-                funcSig.append("(")
-                funcSig.extend(fs)
-                funcSig.append(")")
-                varList.extend(vl)  
-            elif arg_type == "array":
-                funcSig.append("a")
-                varList.append(arg_node.split("$")[0])
-            elif arg_type == "var":
-                funcSig.append("v")
-                varList.append(arg_node)
-                
-        return funcSig, varList
-
-    def _getSameVarsfromFunctionCalls(self, g1: nx.DiGraph, g2: nx.DiGraph):
-        equivalenceDictSure = DefaultDict(list)
-        equivalenceDictUnsure = DefaultDict(list)
-        
-        g1Dict = DefaultDict(list)
-        g2Dict = DefaultDict(list)
-        assignmentDict = DefaultDict(list)
-        
-        typeDict1 = nx.get_node_attributes(g1, "type")
-        for funcCall in g1.edges(data="type", default=""):
-            if funcCall[2] == "func":
-                fs, vl = self._getFuncArgumentsFromGraph(g1, funcCall[0])
-                h = hash(tuple(fs))
-                
-                if funcCall[1] in typeDict1:
-                    lhs = funcCall[1]
-                    assignmentDict[h].append(lhs)
-                
-                g1Dict[h].append(vl)
-
-        typeDict2 = nx.get_node_attributes(g2, "type")
-        for funcCall in g2.edges(data="type", default=""):
-            if funcCall[2] == "func":
-                fs, vl = self._getFuncArgumentsFromGraph(g2, funcCall[0])
-                h = hash(tuple(fs))
-                
-                if funcCall[1] in typeDict2:
-                    lhs = funcCall[1]
-                    assignmentDict[h].append(lhs)
-                
-                g2Dict[h].append(vl)
-
-        for x in g1Dict.keys():
-            if (len(g1Dict[x]) == 1) and (x in g2Dict) and (len(g2Dict[x]) == 1):
-                vars1 = g1Dict[x][0]
-                vars2 = g2Dict[x][0]
-                
-                if len(vars1) == len(vars2):
-                    for y in range(len(vars1)):
-                        src_v = vars1[y]
-                        decomp_v = vars2[y]
-                        if decomp_v not in equivalenceDictSure[src_v]:
-                            equivalenceDictSure[src_v].append(decomp_v) 
-
-            if len(assignmentDict[x]) == 2:
-                val1 = assignmentDict[x][0]
-                val2 = assignmentDict[x][1]
-                equivalenceDictUnsure[val1].append(val2)
-
-        return equivalenceDictSure, equivalenceDictUnsure
 
     def _get_signature(self, node: str, use_src_graph: bool) -> Dict[str, int]:
         """
@@ -250,17 +179,17 @@ class SimilarityMatching:
 
 def main():     
     try:
-        with open("./a.c") as f:
+        with open("/home/jannis/Desktop/ex1.txt") as f:
             cCode = f.read()
         dgrc = DependencyGraphfromCFunction()
         dg = dgrc.getDependencyGraph(cCode)
         
-        with open("./b.c") as f:
+        with open("/home/jannis/Desktop/ex2.txt") as f:
             cCode2 = f.read()
         dgrc2 = DependencyGraphfromCFunction()
         dgg = dgrc2.getDependencyGraph(cCode2)
         
-        sm = SimilarityMatching(dg, dgg)
+        sm = SimilarityMatching(dg, cCode, dgg, cCode2)
         sm.print_results()
     except FileNotFoundError:
         print("Error: Test files not found. Please check file paths in main().")

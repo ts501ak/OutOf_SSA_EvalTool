@@ -45,7 +45,7 @@ class DependencyGraphfromCFunction:
         self.__funcEnd = re.compile(r"[A-Za-z_]\w*$")
         self.__funcNorm = re.compile(r"[A-Za-z_]\w*\(")
         self.__oneequals = re.compile("[^=]=[^=]")
-        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9_][0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
+        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9][0-9_]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
         self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\])"
         self.__specialAccess = re.compile(r" *(?P<first>[A-Za-z_]\w*) *((\.|->) *[A-Za-z_]\w*)*")
         self.__numberbegin = re.compile(r"^ *[0-9]")
@@ -55,6 +55,8 @@ class DependencyGraphfromCFunction:
         self.__dels = re.compile(r"([ \.Pp\+\-])")
         self.__newLine = re.compile(" *\n *")
         self.__Union = re.compile(r"(union.*?)(\} *;\n)",re.DOTALL)
+        self.__funcCall = re.compile(r"[A-Za-z_]\w* *\(")
+        self.__keyWords = re.compile(r"^ *(auto|char|double|enum|float|int|long|short|signed|struct|union|unsigned|void|break|case|continue|default|do|else|for|goto|if|return|switch|while|const|extern|register|static|typedef|volatile|_Bool|_Complex|_Imaginary|inline|restrict|_Noreturn|_Alignas|_Alignof|_Atomic|_Generic|_Static_assert|_Thread_local) *$")
         
 
 
@@ -65,6 +67,14 @@ class DependencyGraphfromCFunction:
         self.__prepareFunc()
         self.__counter = 0
         return self.__constructDepGraph()
+    
+    def getFuncGraph(self,cFunc : str) -> nx.DiGraph:
+        """takes the code of a single function as ascii and builds the dependency graph for it"""
+
+        self.__func = cFunc
+        self.__prepareFunc()
+        self.__counter = 0
+        return self.__constructFuncGraph()
 
     def _fnv1a_64(self, s):
         """
@@ -267,6 +277,96 @@ class DependencyGraphfromCFunction:
         self.depGraph.remove_edges_from(list(nx.selfloop_edges(self.depGraph)))
         return self.depGraph
     
+    def __constructFuncGraph(self) -> nx.DiGraph:
+        """computes the dependency graph of a given preprocessed function
+            Tenary assignments are ignored"""
+        
+        self.depGraph = nx.DiGraph()
+        
+        #for line in self.__func.split("\n"):
+        for instr in [x for x in self.__func.split(";") if x != ''][1:]:
+            if (mat := self.__funcCall.search(instr)):
+                self.__getVariablesOfString2(instr[mat.start():],"dummy")
+
+        self.depGraph.remove_edges_from(list(nx.selfloop_edges(self.depGraph)))
+        return self.depGraph
+    
+    def __getVariablesOfString2(self,strIn : str,lhs:str,isFunc = False):
+        funcArgCount = 0
+        instr = re.split(self.__pat,strIn)
+        instr = [i for i in instr if (i != '') and (i != None)]
+        instr.append(";")
+        count = -1
+        while (count) < (len(instr) - 1):
+            tok = instr[count]
+            if self.__types.search(tok):
+                pass
+            elif (tok in self.__operators) or (tok == ","):
+                pass
+            elif ((const := self.__Constant.search(tok)) != None) and (lhs != "dummy"):
+                #print(strIn,"-->",const.group(0),flush=True)
+                const = self.__constantToDec(const.group("num"))
+                if not isFunc:
+                    self.depGraph.add_edge(const,lhs,type="const")
+                else:
+                    self.depGraph.add_edge(const,lhs,type="const",nr = funcArgCount)
+                    funcArgCount += 1
+                
+            elif (tok == "(") or (tok == ")"):
+                pass
+            elif (string := self.__stringIdent.search(tok)) and (lhs != "dummy"):
+                if not isFunc:
+                    self.depGraph.add_edge(string.group(0),lhs,type="strConst")
+                else:
+                    self.depGraph.add_edge(string.group(0),lhs,type="strConst",nr = funcArgCount)
+                    funcArgCount += 1
+            elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "("):
+                if self.__keyWords.search(tok) == None:
+                    funcName = f"{f.group(0)}${self.__counter}"
+                    self.__counter += 1
+                    if not isFunc:
+                        self.depGraph.add_edge(funcName,lhs,type="func")
+                    else:
+                        self.depGraph.add_edge(funcName,lhs,type="func", nr = funcArgCount)
+                        funcArgCount += 1
+                    brcount = 0
+                    for i in range(count+1,len(instr)-1):
+                        if instr[i] == "(":
+                            brcount += 1
+                        elif instr[i] == ")":
+                            brcount -= 1
+                        if brcount == 0:
+                            brcount = i
+                            break
+                    rest = "".join(instr[count+1:brcount+1])
+                    self.__getVariablesOfString(rest,funcName,True)
+                    count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
+            elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
+                funcName = f"{f.group(0)}${self.__counter}"
+                self.__counter += 1
+                if lhs != "dummy":
+                    self.depGraph.add_edge(funcName,lhs,type="array",nr = funcArgCount)
+                    funcArgCount += 1
+                brcount = 0
+                for i in range(count+1,len(instr)-1):
+                    if instr[i] == "[":
+                        brcount += 1
+                    elif instr[i] == "]":
+                        brcount -= 1
+                    if brcount == 0:
+                        brcount = i
+                        break
+                count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
+                
+            elif (v := self.__specialAccess.search(tok)) and (not self.__numberbegin.search(tok)) and (not self.__Constant.search(tok)) and (lhs != "dummy"):
+                if lhs is not None:
+                    self.depGraph.add_edge(v.group("first"),lhs,type="var",nr = funcArgCount)
+                    funcArgCount += 1
+            else:
+                pass
+            count += 1
+        return
+    
     def __getBracketGroup(self,case:str):
         brcount = 0
         for i in range(len(case)):
@@ -296,6 +396,7 @@ class DependencyGraphfromCFunction:
             elif (tok in self.__operators) or (tok == ","):
                 pass
             elif (const := self.__Constant.search(tok)) != None:
+                #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
@@ -364,6 +465,33 @@ class DependencyGraphfromCFunction:
             count += 1
         return
     
+
+class CompareGraphs:
+    def __init__(self,c1 : str,c2:str):
+        self.c1 = c1
+        self.c2 = c2
+
+    def getSameVars(self):
+        dgfc = DependencyGraphfromCFunction()
+        dg1 = dgfc.getDependencyGraph(self.c1)
+        dg2 = dgfc.getDependencyGraph(self.c2)
+        df1 = dgfc.getFuncGraph(self.c1)
+        df2 = dgfc.getFuncGraph(self.c2)
+        a,b = self.getSameVarsfromFunctionCalls(dg1,dg2)
+        c,d = self.getSameVarsfromFunctionCalls(df1,df2)
+        return self.__mergeDicts(a,c), b
+
+    def __mergeDicts(self,d1 :dict, d2 : dict):
+        res = {}
+        for k in set(list(d1.keys()) + list(d2.keys())):
+            values = []
+            if k in d1.keys():
+                values.extend(d1[k])
+            if k in d2.keys():
+                values.extend(d2[k])
+            res[k] = list(set(values))
+        return res
+            
 
     def areSimilar(self,g1 :nx.DiGraph, g2 : nx.DiGraph):
         a,b = self.getSameVarsfromFunctionCalls(g1,g2)
@@ -434,15 +562,18 @@ class DependencyGraphfromCFunction:
 
 
 def main():
-    with open("./ex1.txt") as f:
+    with open("/home/jannis/Desktop/ex1.txt") as f:
         c1 = f.read()
         print(c1)
-    with open("./ex2.txt") as f:
+    with open("/home/jannis/Desktop/ex2.txt") as f:
         c2 = f.read()
         print(c2)
 
     dgrc = DependencyGraphfromCFunction()
+    cc1 = dgrc.getFuncGraph(c1)
     c1 = dgrc.getDependencyGraph(c1)
+    
+    print(cc1.edges(data=True))
     c2 = dgrc.getDependencyGraph(c2)
     dgrc.areSimilar(c1,c2)
     pass
