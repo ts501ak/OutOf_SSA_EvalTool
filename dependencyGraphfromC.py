@@ -57,7 +57,6 @@ class DependencyGraphfromCFunction:
         self.__Union = re.compile(r"(union.*?)(\} *;\n)",re.DOTALL)
         self.__funcCall = re.compile(r"[A-Za-z_]\w* *\(")
         self.__keyWords = re.compile(r"^ *(auto|char|double|enum|float|int|long|short|signed|struct|union|unsigned|void|break|case|continue|default|do|else|for|goto|if|return|switch|while|const|extern|register|static|typedef|volatile|_Bool|_Complex|_Imaginary|inline|restrict|_Noreturn|_Alignas|_Alignof|_Atomic|_Generic|_Static_assert|_Thread_local) *$")
-        
 
 
     def getDependencyGraph(self,cFunc : str) -> nx.DiGraph:
@@ -228,7 +227,14 @@ class DependencyGraphfromCFunction:
         self.__func = self.__wsEquals.sub(r"=",self.__func)
         self.__func = self.__Union.sub(r"",self.__func)
         self.__func = self.__newLine.sub(r" ",self.__func)
-        
+        self.__func = self.__func.replace("sizeof(int)","4")
+        self.__func = self.__func.replace("sizeof(char)","1")
+        self.__func = self.__func.replace("sizeof(short)","2")
+        self.__func = self.__func.replace("sizeof(long)","4")
+        self.__func = self.__func.replace("sizeof(long long)","8")
+        self.__func = self.__func.replace("sizeof(float)","4")
+        self.__func = self.__func.replace("sizeof(double)","8")
+
 
     def __constructDepGraph(self) -> nx.DiGraph:
         """computes the dependency graph of a given preprocessed function
@@ -467,9 +473,15 @@ class DependencyGraphfromCFunction:
     
 
 class CompareGraphs:
-    def __init__(self,c1 : str,c2:str):
+    def __init__(self,c1 : str,c2:str, buildInNames : list[tuple[2]] = []):
         self.c1 = c1
         self.c2 = c2
+        self.replaceBuildInNames(buildInNames)
+
+    def replaceBuildInNames(self,names : list[tuple[2]]):
+        for x in names:
+            self.c1 = self.c1.replace(x[0],x[1])
+            self.c2 = self.c2.replace(x[0],x[1])
 
     def getSameVars(self):
         dgfc = DependencyGraphfromCFunction()
@@ -479,27 +491,22 @@ class CompareGraphs:
         df2 = dgfc.getFuncGraph(self.c2)
         a,b = self.getSameVarsfromFunctionCalls(dg1,dg2)
         c,d = self.getSameVarsfromFunctionCalls(df1,df2)
-        return self.__mergeDicts(a,c), b
+        return self.__mergeDicts(a,c), self.__mergeDicts(b,d)
 
     def __mergeDicts(self,d1 :dict, d2 : dict):
         res = {}
         for k in set(list(d1.keys()) + list(d2.keys())):
             values = []
             if k in d1.keys():
-                values.extend(d1[k])
+                values.append(d1[k])
             if k in d2.keys():
-                values.extend(d2[k])
-            res[k] = list(set(values))
+                values.append(d2[k])
+            values = list(set(values))
+            if len(values) > 1:
+                raise Exception("Found 2 contradicting certain matches.")
+            res[k] = values[0]
         return res
             
-
-    def areSimilar(self,g1 :nx.DiGraph, g2 : nx.DiGraph):
-        a,b = self.getSameVarsfromFunctionCalls(g1,g2)
-        for x in a.keys():
-            print(x,a[x])
-        for y in b.keys():
-            print(y,b[y])
-        pass
 
     def __getFuncArgumentsFromGraph(self,g : nx.DiGraph,node : str):
         funcSig = []
@@ -510,9 +517,9 @@ class CompareGraphs:
                     funcSig.append(argument[0])
                 case "func":
                     fs, vl = self.__getFuncArgumentsFromGraph(g,argument[0])
-                    funcSig.append("(")
+                    #funcSig.append("(")
                     funcSig.extend(fs)
-                    funcSig.append(")")
+                    #funcSig.append(")")
                     varList.extend(vl)  
                 case "array":
                     funcSig.append("a")
@@ -525,8 +532,8 @@ class CompareGraphs:
     def getSameVarsfromFunctionCalls(self, g1 : nx.DiGraph, g2 : nx.DiGraph):
         equivalenceDictSure = DefaultDict(lambda : [])
         equivalenceDictUnsure = DefaultDict(lambda : [])
-        g1Dict = DefaultDict(list)
-        g2Dict = DefaultDict(list)
+        g1Dict = DefaultDict(lambda : [[]])
+        g2Dict = DefaultDict(lambda : [[]])
         assignmentDict = DefaultDict(list)
         typeDict = nx.get_node_attributes(g1,"type","None")
         for funcCall in g1.edges(data="type",default=""):
@@ -534,29 +541,52 @@ class CompareGraphs:
                 fs, vl = self.__getFuncArgumentsFromGraph(g1,funcCall[0])
                 h = hash(tuple(fs))
                 #print("Function",funcCall[0],fs,vl, h)
+                if not ((h in g1Dict[funcCall[0].split("$")[0]][0]) and (vl in g1Dict[funcCall[0].split("$")[0]])):
+                    g1Dict[funcCall[0].split("$")[0]][0].append(h)
+                    g1Dict[funcCall[0].split("$")[0]].append(vl)
                 if (lhs := typeDict[funcCall[1]]) != "None":
-                    assignmentDict[h].append(lhs)
-                g1Dict[h].append(vl)
+                    assignmentDict[(funcCall[0].split("$")[0],h)].append(lhs)
         typeDict = nx.get_node_attributes(g2,"type","None")
         for funcCall in g2.edges(data="type",default=""):
             if funcCall[2] == "func":
                 fs, vl = self.__getFuncArgumentsFromGraph(g2,funcCall[0])
                 h = hash(tuple(fs))
                 #print("Function",funcCall[0],fs,vl, h)
-
+                if not ((h in g2Dict[funcCall[0].split("$")[0]][0]) and (vl in g2Dict[funcCall[0].split("$")[0]])):
+                    g2Dict[funcCall[0].split("$")[0]][0].append(h)
+                    g2Dict[funcCall[0].split("$")[0]].append(vl)
                 if (lhs := typeDict[funcCall[1]]) != "None":
-                    assignmentDict[h].append(lhs)
-                g2Dict[h].append(vl)
+                    assignmentDict[(funcCall[0].split("$")[0],h)].append(lhs)
         for x in g1Dict.keys():
-            if (len(g1Dict[x]) == 1) and (x in g2Dict.keys()) and (len(g2Dict[x]) == 1):
-                for y in range(len(g1Dict[x][0])):
-                        #if g1Dict[x][0][y] not in equivalenceDictSure[g2Dict[x][0][y]]:
-                        #    equivalenceDictSure[g2Dict[x][0][y]].append(g1Dict[x][0][y]) 
-                        if g2Dict[x][0][y] not in equivalenceDictSure[g1Dict[x][0][y]]:
-                            equivalenceDictSure[g1Dict[x][0][y]].append(g2Dict[x][0][y]) 
-                if len(assignmentDict[x]) == 2:
-                    equivalenceDictUnsure[assignmentDict[x][0]].append(assignmentDict[x][1])
-                    #equivalenceDictUnsure[assignmentDict[x][1]].append(assignmentDict[x][0])
+            g1remInd = []
+            g2remInd = []
+            
+            for i in range(len(g1Dict[x][0])):
+                if (g2Dict[x][0].count(g1Dict[x][0][i]) == 1) and (g1Dict[x][0].count(g1Dict[x][0][i]) == 1):
+                    g1remInd.append(i)
+                    ind = g2Dict[x][0].index(g1Dict[x][0][i])
+                    g2remInd.append(ind)
+                    for j in range(len(g1Dict[x][i+1])):
+                        equivalenceDictSure[g1Dict[x][i+1][j]] = g2Dict[x][ind+1][j]
+                    if len(assignmentDict[(x,g1Dict[x][0][i])]) == 2:
+                        equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][i])][0]] = assignmentDict[(x,g1Dict[x][0][i])][1]
+            g1remInd = sorted(g1remInd,reverse=True)
+            g2remInd = sorted(g2remInd,reverse=True)
+            for k in range(len(g1remInd)):
+                g1Dict[x][0].pop(g1remInd[k])
+                g1Dict[x].pop(g1remInd[k] + 1)
+                g2Dict[x][0].pop(g2remInd[k])
+                g2Dict[x].pop(g2remInd[k] + 1)
+
+        #Everything left in g1Dict and g2Dict is not directly matchable, however if one Function-Name has one left in each dict we can match them anyways
+        for x in g1Dict.keys():
+            if (len(g1Dict[x][0]) == 1) and (len(g2Dict[x][0]) == 1):
+                if (len(assignmentDict[(x,g1Dict[x][0][0])]) == 1) and (len(assignmentDict[(x,g2Dict[x][0][0])]) == 1):
+                    equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][0])][0]] = assignmentDict[(x,g2Dict[x][0][0])][0]
+
+                if (len(g1Dict[x][1]) == len(g2Dict[x][1])):
+                    for y in range(len(g1Dict[x][1])):
+                        equivalenceDictUnsure[g1Dict[x][1][y]] = g2Dict[x][1][y]
 
         return equivalenceDictSure, equivalenceDictUnsure
 
@@ -569,14 +599,14 @@ def main():
         c2 = f.read()
         print(c2)
 
-    dgrc = DependencyGraphfromCFunction()
-    cc1 = dgrc.getFuncGraph(c1)
-    c1 = dgrc.getDependencyGraph(c1)
-    
-    print(cc1.edges(data=True))
-    c2 = dgrc.getDependencyGraph(c2)
-    dgrc.areSimilar(c1,c2)
-    pass
+    tesObj = CompareGraphs(c1,c2)
+    a,b = tesObj.getSameVars()
+
+    for x in a.keys():
+        print(x,":",a[x])
+    print("---")
+    for x in b.keys():
+        print(x,":",b[x])
 
 
 if __name__ == "__main__":
