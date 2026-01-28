@@ -37,19 +37,14 @@ class SimilarityMatching:
         compObj = CompareGraphs(self._src_Code,self._decomp_Code)
         safe_matches, unsafe_matches = compObj.getSameVars()
 
-        for src_var, decomp_vars_list in safe_matches.items():
-            if decomp_vars_list:
-                d_var = decomp_vars_list[0]
-                self.mapping[src_var] = (d_var, 1.0)
-                self.src_unknowns.discard(src_var)
-                self.decomp_unknowns.discard(d_var)
+        for src_var, d_var in safe_matches.items():
+            self.mapping[src_var] = (d_var, 1.0)
+            self.src_unknowns.discard(src_var)
+            self.decomp_unknowns.discard(d_var)
+            print(src_var, d_var)
 
-        for src_var, decomp_candidates in unsafe_matches.items():
-            if src_var not in self.hint_mapping:
-                self.hint_mapping[src_var] = set()
-            for dc in decomp_candidates:
-                self.hint_mapping[src_var].add(dc)
-
+        for src_var, d_var in unsafe_matches.items():
+            self.hint_mapping[src_var] = d_var
 
     def _get_signature(self, node: str, use_src_graph: bool) -> Dict[str, int]:
         """
@@ -126,7 +121,7 @@ class SimilarityMatching:
 
             
         score = intersection_score / union_size
-        if src_node in self.hint_mapping and decomp_node in self.hint_mapping[src_node]:
+        if self.hint_mapping.get(src_node) == decomp_node: 
             score += self.WEIGHT_HINT_BOOST
 
         return min(1, score)
@@ -179,12 +174,12 @@ class SimilarityMatching:
 
 def main():     
     try:
-        with open("/home/jannis/Desktop/ex1.txt") as f:
+        with open("/home/ak/Downloads/ex1 1.txt") as f:
             cCode = f.read()
         dgrc = DependencyGraphfromCFunction()
         dg = dgrc.getDependencyGraph(cCode)
         
-        with open("/home/jannis/Desktop/ex2.txt") as f:
+        with open("/home/ak/Downloads/ex2 1.txt") as f:
             cCode2 = f.read()
         dgrc2 = DependencyGraphfromCFunction()
         dgg = dgrc2.getDependencyGraph(cCode2)
