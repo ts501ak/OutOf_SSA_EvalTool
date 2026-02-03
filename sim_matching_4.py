@@ -41,7 +41,6 @@ class SimilarityMatching:
             self.mapping[src_var] = (d_var, 1.0)
             self.src_unknowns.discard(src_var)
             self.decomp_unknowns.discard(d_var)
-            print(src_var, d_var)
 
         for src_var, d_var in unsafe_matches.items():
             self.hint_mapping[src_var] = d_var
@@ -94,9 +93,6 @@ class SimilarityMatching:
         return signature
 
     def _compute_score(self, src_node: str, src_sig: Dict[str, int], decomp_node: str, decomp_sig: Dict[str, int]) -> float:
-        """
-        Calculates weighted Jaccard index based on Distance Alignment and Proximity.
-        """
         common_features = src_sig.keys() & decomp_sig.keys()
         if not common_features: return 0.0
 
@@ -111,7 +107,7 @@ class SimilarityMatching:
             alignment_factor = 1.0 / (1.0 + self.SIG_DIST_PENALTY * dist_diff)
             
             # Proximity: (Closer = Higher Score)
-            avg_dist = (d_src + d_decomp) / 2.0
+            avg_dist = ((d_src + d_decomp) / 2.0 - 1)
             proximity_factor = 1.0 / (1.0 + self.WEIGHT_PROXIMITY_DECAY * avg_dist)
             
             intersection_score += (alignment_factor * proximity_factor)
