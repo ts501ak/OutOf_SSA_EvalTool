@@ -1,7 +1,7 @@
 from typing import DefaultDict
 import networkx as nx
 import re
-import matplotlib.pyplot as pp
+import matplotlib.pyplot as plt
 
 def fnv1a_64(s):
     h = 0xcbf29ce484222325  # 64-bit offset basis
@@ -312,6 +312,7 @@ class DependencyGraphfromCFunction:
             elif ((const := self.__Constant.search(tok)) != None) and (lhs != "dummy"):
                 #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
+                self.depGraph.add_node(const,type="const")
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
                 else:
@@ -404,6 +405,7 @@ class DependencyGraphfromCFunction:
             elif (const := self.__Constant.search(tok)) != None:
                 #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
+                self.depGraph.add_node(const,type="const")
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
                 else:
@@ -482,6 +484,20 @@ class CompareGraphs:
         for x in names:
             self.c1 = self.c1.replace(x[0],x[1])
             self.c2 = self.c2.replace(x[0],x[1])
+            
+    def getSameConstants(self,c1 : nx.DiGraph, c2 : nx.DiGraph): 
+        equivDict = {}
+        vars1 = [x for x,y in nx.get_node_attributes(c1,"type","None") if y == "const"]
+        vars2 = [x for x,y in nx.get_node_attributes(c2,"type","None") if y == "const"]
+
+        for var in vars1:
+            if (vars1.count(var) == 1) and (var in vars2) and (vars2.count(var) == 1):
+                equivDict[var] = var
+
+        return equivDict
+
+
+
 
     def getSameVars(self):
         dgfc = DependencyGraphfromCFunction()
@@ -491,7 +507,8 @@ class CompareGraphs:
         df2 = dgfc.getFuncGraph(self.c2)
         a,b = self.getSameVarsfromFunctionCalls(dg1,dg2)
         c,d = self.getSameVarsfromFunctionCalls(df1,df2)
-        return self.__mergeDicts(a,c), self.__mergeDicts(b,d)
+        e = self.getSameConstants(df1,df2)
+        return self.__mergeDicts(self.__mergeDicts(a,c),e), self.__mergeDicts(b,d)
 
     def __mergeDicts(self,d1 :dict, d2 : dict):
         res = {}
@@ -598,6 +615,13 @@ def main():
     with open("/home/jannis/Desktop/ex2.txt") as f:
         c2 = f.read()
         print(c2)
+
+    cc1 = DependencyGraphfromCFunction()
+    dg = cc1.getDependencyGraph(c1)
+    pos = nx.kamada_kawai_layout(dg)
+    plt.figure()
+    nx.draw(dg,pos,with_labels=True,edge_color="black",node_color="orange",arrowstyle="->",node_size=2000,width=4,font_size=18)
+    plt.show()
 
     tesObj = CompareGraphs(c1,c2)
     a,b = tesObj.getSameVars()
