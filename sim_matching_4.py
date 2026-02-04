@@ -1,6 +1,7 @@
 import networkx as nx
 from typing import DefaultDict, Dict, Set, Tuple
-from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs
+from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
+from collections import defaultdict
 
 class SimilarityMatching:
     MATCH_THRESHOLD = 0.5          
@@ -35,7 +36,8 @@ class SimilarityMatching:
         self.src_unknowns =  self._calc_unknown_nodes(self._src_graph)
         self.decomp_unknowns = self._calc_unknown_nodes(self._decomp_graph)
         compObj = CompareGraphs(self._src_Code,self._decomp_Code)
-        safe_matches, unsafe_matches = compObj.getSameVars()
+        safe_matches, unsafe_matches, constants = compObj.getSameVars()
+        self.constants = constants
 
         for src_var, d_var in safe_matches.items():
             self.mapping[src_var] = (d_var, 1.0)
@@ -168,20 +170,35 @@ class SimilarityMatching:
             print(f"{src:<20} -> {decomp:<20} ({score:.2f})")
         print("="*60 + "\n")
 
+    def computeGraphEditDistance(self,timeout = 20):
+        equivDict = {a : b for a,(b,c) in self.mapping.items()}
+        equivDict = mergeDicts(equivDict,self.constants)
+        equivDict = DefaultDict(lambda : None,equivDict)
+        equivDict["return"] = "return"
+
+        def areSameNode(n1 : str, n2 : str):
+            if equivDict[n1["name"]] == n2["name"]:
+                return True
+            else:
+                return False
+
+        return nx.graph_edit_distance(self._src_graph,self._decomp_graph,node_match=areSameNode,timeout=timeout)
+
 def main():     
     try:
-        with open("/home/ak/Downloads/ex1 1.txt") as f:
+        with open("/home/jannis/Desktop/ex1.txt") as f:
             cCode = f.read()
         dgrc = DependencyGraphfromCFunction()
         dg = dgrc.getDependencyGraph(cCode)
         
-        with open("/home/ak/Downloads/ex2 1.txt") as f:
+        with open("/home/jannis/Desktop/ex2.txt") as f:
             cCode2 = f.read()
         dgrc2 = DependencyGraphfromCFunction()
         dgg = dgrc2.getDependencyGraph(cCode2)
         
         sm = SimilarityMatching(dg, cCode, dgg, cCode2)
         sm.print_results()
+        print(sm.computeGraphEditDistance(10))
     except FileNotFoundError:
         print("Error: Test files not found. Please check file paths in main().")
     except NameError:

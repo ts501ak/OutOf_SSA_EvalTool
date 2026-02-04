@@ -227,7 +227,7 @@ class DependencyGraphfromCFunction:
         self.__func = self.__wsEquals.sub(r"=",self.__func)
         self.__func = self.__Union.sub(r"",self.__func)
         self.__func = self.__newLine.sub(r" ",self.__func)
-        self.__func = self.__func.replace("sizeof(int)","4")
+        self.__func = self.__func.replace("sizeof(int)","4") #Note: we presuppose a "normal" Linux x64 Machine, so this should be fine
         self.__func = self.__func.replace("sizeof(char)","1")
         self.__func = self.__func.replace("sizeof(short)","2")
         self.__func = self.__func.replace("sizeof(long)","4")
@@ -253,29 +253,36 @@ class DependencyGraphfromCFunction:
                     instr = instr[start + len(assi.group(0)):]
                     if ta := self.__ternaryAssig.search(instr):
                         nodeName = self.__getVarName()
-                        self.depGraph.add_node(nodeName,type=lhs)
+                        self.depGraph.add_node(nodeName,type=lhs,name=nodeName)
+                        self.depGraph.add_node(lhs,name=lhs)
                         self.depGraph.add_edge(nodeName,lhs,type="assig")
                         self.__getVariablesOfString(self.__getBracketGroup(ta.group("ifTrue")),nodeName)
                         nodeName = self.__getVarName()
-                        self.depGraph.add_node(nodeName,type=lhs)
+                        self.depGraph.add_node(nodeName,type=lhs,name=nodeName)
                         self.depGraph.add_edge(nodeName,lhs,type="assig")
                         self.__getVariablesOfString(self.__getBracketGroup(ta.group("ifFalse")),nodeName)
                     else:
                         nodeName = self.__getVarName()
-                        self.depGraph.add_node(nodeName,type=lhs)
+                        self.depGraph.add_node(nodeName,type=lhs,name=nodeName)
+                        self.depGraph.add_node(lhs,name=lhs)
                         self.depGraph.add_edge(nodeName,lhs,type="assig")
                         self.__getVariablesOfString(instr,nodeName)
             
             elif (ind := instr.find("return")) != -1:
                 if ta := self.__ternaryAssig.search(instr[ind + 6:]):
                     nodeName = self.__getVarName()
+                    self.depGraph.add_node("return",name="return")
+                    self.depGraph.add_node(nodeName,name=nodeName)
                     self.depGraph.add_edge(nodeName,"return",type="return")
                     self.__getVariablesOfString(self.__getBracketGroup(ta.group("ifTrue")),nodeName)
                     nodeName = self.__getVarName()
+                    self.depGraph.add_node(nodeName,name=nodeName)
                     self.depGraph.add_edge(nodeName,"return",type="return")
                     self.__getVariablesOfString(self.__getBracketGroup(ta.group("ifFalse")),nodeName)
                 else:
                     nodeName = self.__getVarName()
+                    self.depGraph.add_node("return",name="return")
+                    self.depGraph.add_node(nodeName,name=nodeName)
                     self.depGraph.add_edge(nodeName,"return",type="return")
                     self.__getVariablesOfString(instr[ind + 6:],nodeName)
 
@@ -312,7 +319,8 @@ class DependencyGraphfromCFunction:
             elif ((const := self.__Constant.search(tok)) != None) and (lhs != "dummy"):
                 #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
-                self.depGraph.add_node(const,type="const")
+                self.depGraph.add_node(const,type="const",name=const)
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
                 else:
@@ -322,6 +330,8 @@ class DependencyGraphfromCFunction:
             elif (tok == "(") or (tok == ")"):
                 pass
             elif (string := self.__stringIdent.search(tok)) and (lhs != "dummy"):
+                self.depGraph.add_node(string.group(0),name=string.group(0))
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(string.group(0),lhs,type="strConst")
                 else:
@@ -331,6 +341,8 @@ class DependencyGraphfromCFunction:
                 if self.__keyWords.search(tok) == None:
                     funcName = f"{f.group(0)}${self.__counter}"
                     self.__counter += 1
+                    self.depGraph.add_node(funcName,name=funcName)
+                    self.depGraph.add_node(lhs,name=lhs)
                     if not isFunc:
                         self.depGraph.add_edge(funcName,lhs,type="func")
                     else:
@@ -351,6 +363,8 @@ class DependencyGraphfromCFunction:
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
                 funcName = f"{f.group(0)}${self.__counter}"
                 self.__counter += 1
+                self.depGraph.add_node(funcName,name=funcName)
+                self.depGraph.add_node(lhs,name=lhs)
                 if lhs != "dummy":
                     self.depGraph.add_edge(funcName,lhs,type="array",nr = funcArgCount)
                     funcArgCount += 1
@@ -367,6 +381,8 @@ class DependencyGraphfromCFunction:
                 
             elif (v := self.__specialAccess.search(tok)) and (not self.__numberbegin.search(tok)) and (not self.__Constant.search(tok)) and (lhs != "dummy"):
                 if lhs is not None:
+                    self.depGraph.add_node(v.group("first"), name = v.group("first"))
+                    self.depGraph.add_node(lhs,name=lhs)
                     self.depGraph.add_edge(v.group("first"),lhs,type="var",nr = funcArgCount)
                     funcArgCount += 1
             else:
@@ -405,7 +421,8 @@ class DependencyGraphfromCFunction:
             elif (const := self.__Constant.search(tok)) != None:
                 #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
-                self.depGraph.add_node(const,type="const")
+                self.depGraph.add_node(const,type="const",name=const)
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(const,lhs,type="const")
                 else:
@@ -415,6 +432,8 @@ class DependencyGraphfromCFunction:
             elif (tok == "(") or (tok == ")"):
                 pass
             elif string := self.__stringIdent.search(tok):
+                self.depGraph.add_node(string.group(0),name=string.group(0))
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(string.group(0),lhs,type="strConst")
                 else:
@@ -423,6 +442,8 @@ class DependencyGraphfromCFunction:
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "("):
                 funcName = f"{f.group(0)}${self.__counter}"
                 self.__counter += 1
+                self.depGraph.add_node(funcName,name=funcName)
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(funcName,lhs,type="func")
                 else:
@@ -442,8 +463,11 @@ class DependencyGraphfromCFunction:
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
                 funcName = f"{f.group(0)}${self.__counter}"
+                self.depGraph.add_node(funcName,name=funcName)
+                self.depGraph.add_node(f.group(0),name=f.group(0))
                 self.depGraph.add_edge(funcName,f.group(0),type="ReferenceArray")
                 self.__counter += 1
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(funcName,lhs,type="array")
                 else:
@@ -463,6 +487,8 @@ class DependencyGraphfromCFunction:
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
                 
             elif (v := self.__specialAccess.search(tok)) and (not self.__numberbegin.search(tok)) and (not self.__Constant.search(tok)):
+                self.depGraph.add_node(v.group("first"),name=v.group("first"))
+                self.depGraph.add_node(lhs,name=lhs)
                 if not isFunc:
                     self.depGraph.add_edge(v.group("first"),lhs,type="var")
                 else:
@@ -472,7 +498,20 @@ class DependencyGraphfromCFunction:
                 pass
             count += 1
         return
-    
+
+def mergeDicts(d1 :dict, d2 : dict):
+    res = {}
+    for k in set(list(d1.keys()) + list(d2.keys())):
+        values = []
+        if k in d1.keys():
+            values.append(d1[k])
+        if k in d2.keys():
+            values.append(d2[k])
+        values = list(set(values))
+        if len(values) > 1:
+            raise Exception("Found 2 contradicting certain matches.")
+        res[k] = values[0]
+    return res   
 
 class CompareGraphs:
     def __init__(self,c1 : str,c2:str, buildInNames : list[tuple[2]] = []):
@@ -487,17 +526,14 @@ class CompareGraphs:
             
     def getSameConstants(self,c1 : nx.DiGraph, c2 : nx.DiGraph): 
         equivDict = {}
-        vars1 = [x for x,y in nx.get_node_attributes(c1,"type","None") if y == "const"]
-        vars2 = [x for x,y in nx.get_node_attributes(c2,"type","None") if y == "const"]
+        vars1 = [x for x,y in nx.get_node_attributes(c1,"type","None").items() if y == "const"]
+        vars2 = [x for x,y in nx.get_node_attributes(c2,"type","None").items() if y == "const"]
 
         for var in vars1:
             if (vars1.count(var) == 1) and (var in vars2) and (vars2.count(var) == 1):
                 equivDict[var] = var
 
         return equivDict
-
-
-
 
     def getSameVars(self):
         dgfc = DependencyGraphfromCFunction()
@@ -508,22 +544,8 @@ class CompareGraphs:
         a,b = self.getSameVarsfromFunctionCalls(dg1,dg2)
         c,d = self.getSameVarsfromFunctionCalls(df1,df2)
         e = self.getSameConstants(df1,df2)
-        return self.__mergeDicts(self.__mergeDicts(a,c),e), self.__mergeDicts(b,d)
-
-    def __mergeDicts(self,d1 :dict, d2 : dict):
-        res = {}
-        for k in set(list(d1.keys()) + list(d2.keys())):
-            values = []
-            if k in d1.keys():
-                values.append(d1[k])
-            if k in d2.keys():
-                values.append(d2[k])
-            values = list(set(values))
-            if len(values) > 1:
-                raise Exception("Found 2 contradicting certain matches.")
-            res[k] = values[0]
-        return res
-            
+        return mergeDicts(a,c), mergeDicts(b,d),e
+       
 
     def __getFuncArgumentsFromGraph(self,g : nx.DiGraph,node : str):
         funcSig = []
@@ -624,7 +646,7 @@ def main():
     plt.show()
 
     tesObj = CompareGraphs(c1,c2)
-    a,b = tesObj.getSameVars()
+    a,b,c = tesObj.getSameVars()
 
     for x in a.keys():
         print(x,":",a[x])
