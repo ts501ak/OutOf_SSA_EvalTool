@@ -26,7 +26,7 @@ class StatisticsClass:
     def fuseStatObj(self,statobj :Self):
         self.runs += statobj.runs
         self.anzZhk1.extend(statobj.anzZhk1)
-        self.anzZhk1.extend(statobj.anzZhk2)
+        self.anzZhk2.extend(statobj.anzZhk2)
         self.matchedZhk += statobj.matchedZhk
         self.halfmatchedZhk += statobj.halfmatchedZhk
         self.notmatchedZhk += statobj.notmatchedZhk
