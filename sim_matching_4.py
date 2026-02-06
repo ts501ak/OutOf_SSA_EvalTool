@@ -21,6 +21,7 @@ class StatisticsClass:
         self.timeOuts = 0
         self.notimeOut = 0
         self.timeNeeded = []
+        self.lastGED = 0
 
     def fuseStatObj(self,statobj :Self):
         self.runs += statobj.runs
@@ -39,7 +40,7 @@ class StatisticsClass:
         self.timeNeeded.extend(statobj.timeNeeded)
 
     def getGED(self):
-        return self.totalGED
+        return self.lastGED
 
     def printResults(self):
         print('%-24s%-20i' % ("#compared code samples",self.runs))
@@ -224,6 +225,7 @@ class SimilarityMatching:
 
     def computeGraphEditDistance(self,timeout = 20,stats : StatisticsClass = StatisticsClass()):
         stats.runs += 1
+        stats.lastGED = 0
         stats.totalNodes1.append(len(self._src_graph.nodes(data=False)))
         stats.totalNodes2.append(len(self._decomp_graph.nodes(data=False)))
 
@@ -302,7 +304,7 @@ class SimilarityMatching:
                 srcGraph = subgraphDict[zz][0][0].union(gscrNodes)
                 decompGraph = subgraphDict[zz][1][0].union(gdecompNodes)
                 start = time_ns()
-                stats.totalGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph),undirdecompGraph.subgraph(decompGraph),node_match=areSameNode,timeout=timeout)
+                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph),undirdecompGraph.subgraph(decompGraph),node_match=areSameNode,timeout=timeout)
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
                 if int((end-start)/1000000000) > (timeout):
@@ -321,7 +323,7 @@ class SimilarityMatching:
                     stats.halfmatchedZhk += 1
                 decompSet.update(gdecompNodes)
                 start = time_ns()
-                stats.totalGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet),undirdecompGraph.subgraph(decompSet),node_match=areSameNode,timeout=timeout)
+                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet),undirdecompGraph.subgraph(decompSet),node_match=areSameNode,timeout=timeout)
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
                 if int((end-start)/1000000000) > (timeout):
@@ -340,7 +342,7 @@ class SimilarityMatching:
         remaindecomp.update(gdecompNodes)
 
         start = time_ns()
-        stats.totalGED += nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc),undirdecompGraph.subgraph(remaindecomp),node_match=areSameNode,timeout=timeout)
+        stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc),undirdecompGraph.subgraph(remaindecomp),node_match=areSameNode,timeout=timeout)
         end = time_ns()
         stats.timeNeeded.append((end-start)/1000000000)
         if int((end-start)/1000000000) > (timeout):
@@ -348,6 +350,7 @@ class SimilarityMatching:
         else:
             stats.notimeOut += 1
 
+        stats.totalGED += stats.lastGED
         return stats
 
 def showGraph(g : nx.DiGraph):
