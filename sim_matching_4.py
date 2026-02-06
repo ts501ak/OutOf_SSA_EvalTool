@@ -1,7 +1,59 @@
 import networkx as nx
-from typing import DefaultDict, Dict, Set, Tuple
+from typing import DefaultDict, Dict, Set, Tuple, Self
 from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 from collections import defaultdict
+import matplotlib.pyplot as plt
+from time import time_ns
+
+class StatisticsClass:
+    def __init__(self):
+        self.runs = 0
+        self.anzZhk1 = []
+        self.anzZhk2 = []
+        self.matchedZhk = 0
+        self.halfmatchedZhk = 0
+        self.notmatchedZhk = 0
+        self.totalGED = 0
+        self.savePoints = []
+        self.totalNodes1 = []
+        self.totalNodes2 = []
+        self.sizeZhk = []
+        self.timeOuts = 0
+        self.notimeOut = 0
+        self.timeNeeded = []
+
+    def fuseStatObj(self,statobj :Self):
+        self.runs += statobj.runs
+        self.anzZhk1.extend(statobj.anzZhk1)
+        self.anzZhk1.extend(statobj.anzZhk2)
+        self.matchedZhk += statobj.matchedZhk
+        self.halfmatchedZhk += statobj.halfmatchedZhk
+        self.notmatchedZhk += statobj.notmatchedZhk
+        self.totalGED += statobj.totalGED
+        self.savePoints.extend(statobj.savePoints)
+        self.totalNodes1.extend(statobj.totalNodes1)
+        self.totalNodes2.extend(statobj.totalNodes2)
+        self.sizeZhk.extend(statobj.sizeZhk)
+        self.timeOuts += statobj.timeOuts
+        self.notimeOut += statobj.notimeOut
+        self.timeNeeded.extend(statobj.timeNeeded)
+
+    def getGED(self):
+        return self.totalGED
+
+    def printResults(self):
+        print('%-24s%-20i' % ("#compared code samples",self.runs))
+        print('%-24s%-20i' % ("total GED",self.totalGED))
+        print('%-24s%-20f' % ("average source zhk",sum(self.anzZhk1)/len(self.anzZhk1)))
+        print('%-24s%-20f' % ("average decomp zhk",sum(self.anzZhk2)/len(self.anzZhk2)))
+        print('%-24s%-20i' % ("#matched zhk",self.matchedZhk + self.halfmatchedZhk))
+        print('%-24s%-20i' % ("#not matched zhk",self.notmatchedZhk))
+        print('%-24s%-20f' % ("average save Points",sum(self.savePoints)/len(self.savePoints)))
+        print('%-24s%-20f' % ("average zhk size",sum(self.sizeZhk)/len(self.sizeZhk)))
+        print('%-24s%-20i' % ("GED no Timeout",self.notimeOut))
+        print('%-24s%-20i' % ("GED Timeouts",self.timeOuts))
+        print('%-24s%-20s' % ("average GED Time",str(round((sum(self.timeNeeded)/(self.timeOuts + self.notimeOut)),2))+"s"))
+
 
 class SimilarityMatching:
     MATCH_THRESHOLD = 0.5          
@@ -170,19 +222,139 @@ class SimilarityMatching:
             print(f"{src:<20} -> {decomp:<20} ({score:.2f})")
         print("="*60 + "\n")
 
-    def computeGraphEditDistance(self,timeout = 20):
+    def computeGraphEditDistance(self,timeout = 20,stats : StatisticsClass = StatisticsClass()):
+        stats.runs += 1
+        stats.totalNodes1.append(len(self._src_graph.nodes(data=False)))
+        stats.totalNodes2.append(len(self._decomp_graph.nodes(data=False)))
+
+        subgraphDict = DefaultDict(lambda : [[],[]])
+        
         equivDict = {a : b for a,(b,c) in self.mapping.items()}
         equivDict = mergeDicts(equivDict,self.constants)
         equivDict = DefaultDict(lambda : None,equivDict)
         equivDict["return"] = "return"
 
         def areSameNode(n1 : str, n2 : str):
-            if equivDict[n1["name"]] == n2["name"]:
+            if (equivDict[n1["name"]] == n2["name"]) or (equivDict[n2["name"]] == n1["name"]):
                 return True
             else:
                 return False
 
-        return nx.graph_edit_distance(self._src_graph,self._decomp_graph,node_match=areSameNode,timeout=timeout)
+        gscrNodes = equivDict.keys()
+        gdecompNodes = equivDict.values()
+
+        stats.savePoints.append(len(equivDict))
+
+        undirSrcGraph = self._src_graph.to_undirected()
+        undirdecompGraph = self._decomp_graph.to_undirected()
+
+        g1zhks = undirSrcGraph.subgraph([x for x in self._src_graph.nodes(data=False) if x not in gscrNodes])
+        g2zhks = undirdecompGraph.subgraph([x for x in self._decomp_graph.nodes(data=False) if x not in gdecompNodes])
+
+        stats.anzZhk1.append(len(list(nx.connected_components(g1zhks))))
+        stats.anzZhk2.append(len(list(nx.connected_components(g2zhks))))
+
+        sizeConComp = []
+
+        #showGraph(undirSrcGraph)
+        #showGraph(g1zhks)
+        for x in nx.connected_components(g1zhks):
+            sizeConComp.append(len(x))
+            connectedSepeartors = []
+            y = set(gscrNodes).union(x)
+            y = undirSrcGraph.subgraph(y)
+            for z in y.edges(data=False):
+                if (z[0] in gscrNodes) and (z[1] in x):
+                    connectedSepeartors.append(equivDict[z[0]])
+                elif (z[1] in gscrNodes) and (z[0] in x):
+                    connectedSepeartors.append(equivDict[z[1]])
+                
+            connectedSepeartors = tuple(sorted(list(set(connectedSepeartors))))
+
+            subgraphDict[connectedSepeartors][0].append(x)
+        
+
+        #showGraph(undirdecompGraph)
+        #showGraph(g2zhks)
+        for x in nx.connected_components(g2zhks):
+            sizeConComp.append(len(x))
+            connectedSepeartors = []
+            y = set(gdecompNodes).union(x)
+            y = undirdecompGraph.subgraph(y)
+            for z in y.edges(data=False):
+                if (z[0] in gdecompNodes) and (z[1] in x):
+                    connectedSepeartors.append(z[0])
+                elif (z[1] in gdecompNodes) and (z[0] in x):
+                    connectedSepeartors.append(z[1])
+                
+            connectedSepeartors = tuple(sorted(list(set(connectedSepeartors))))
+
+            subgraphDict[connectedSepeartors][1].append(x)
+        
+        stats.sizeZhk.append(sum(sizeConComp)/len(sizeConComp))
+
+        remainsrc = set()
+        remaindecomp = set()
+
+        for zz in subgraphDict.keys():
+            if (len(subgraphDict[zz][0]) == 1) and (len(subgraphDict[zz][1]) == 1):
+                stats.matchedZhk += 2
+                srcGraph = subgraphDict[zz][0][0].union(gscrNodes)
+                decompGraph = subgraphDict[zz][1][0].union(gdecompNodes)
+                start = time_ns()
+                stats.totalGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph),undirdecompGraph.subgraph(decompGraph),node_match=areSameNode,timeout=timeout)
+                end = time_ns()
+                stats.timeNeeded.append((end-start)/1000000000)
+                if int((end-start)/1000000000) > (timeout):
+                    stats.timeOuts += 1
+                else:
+                    stats.notimeOut += 1
+            elif (len(subgraphDict[zz][0])) == (len(subgraphDict[zz][1])):
+                srcSet = set()
+                decompSet = set()
+                for aa in subgraphDict[zz][0]:
+                    srcSet.update(aa)
+                    stats.halfmatchedZhk += 1
+                srcSet.update(gscrNodes)
+                for bb in subgraphDict[zz][1]:
+                    decompSet.update(bb)
+                    stats.halfmatchedZhk += 1
+                decompSet.update(gdecompNodes)
+                start = time_ns()
+                stats.totalGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet),undirdecompGraph.subgraph(decompSet),node_match=areSameNode,timeout=timeout)
+                end = time_ns()
+                stats.timeNeeded.append((end-start)/1000000000)
+                if int((end-start)/1000000000) > (timeout):
+                    stats.timeOuts += 1
+                else:
+                    stats.notimeOut += 1
+            else:
+                for bb in subgraphDict[zz][0]:
+                    remainsrc.update(bb)
+                    stats.notmatchedZhk += 1
+                for cc in subgraphDict[zz][1]:
+                    remaindecomp.update(cc)
+                    stats.notmatchedZhk += 1
+        
+        remainsrc.update(gscrNodes)
+        remaindecomp.update(gdecompNodes)
+
+        start = time_ns()
+        stats.totalGED += nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc),undirdecompGraph.subgraph(remaindecomp),node_match=areSameNode,timeout=timeout)
+        end = time_ns()
+        stats.timeNeeded.append((end-start)/1000000000)
+        if int((end-start)/1000000000) > (timeout):
+            stats.timeOuts += 1
+        else:
+            stats.notimeOut += 1
+
+        return stats
+
+def showGraph(g : nx.DiGraph):
+    pos = nx.kamada_kawai_layout(g)
+    plt.figure()
+    nx.draw(g,pos,with_labels=True,edge_color="black",node_color="orange",arrowstyle="->",node_size=2000,width=4,font_size=18)
+    plt.show()
 
 def main():     
     try:
@@ -197,8 +369,8 @@ def main():
         dgg = dgrc2.getDependencyGraph(cCode2)
         
         sm = SimilarityMatching(dg, cCode, dgg, cCode2)
-        sm.print_results()
-        print(sm.computeGraphEditDistance(10))
+        #sm.print_results()
+        sm.computeGraphEditDistance(20).printResults()
     except FileNotFoundError:
         print("Error: Test files not found. Please check file paths in main().")
     except NameError:

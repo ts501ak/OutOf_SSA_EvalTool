@@ -578,24 +578,26 @@ class CompareGraphs:
         for funcCall in g1.edges(data="type",default=""):
             if funcCall[2] == "func":
                 fs, vl = self.__getFuncArgumentsFromGraph(g1,funcCall[0])
+                vl.append(funcCall[0]) #We also want to match the node of the function
                 h = hash(tuple(fs))
                 #print("Function",funcCall[0],fs,vl, h)
                 if not ((h in g1Dict[funcCall[0].split("$")[0]][0]) and (vl in g1Dict[funcCall[0].split("$")[0]])):
                     g1Dict[funcCall[0].split("$")[0]][0].append(h)
                     g1Dict[funcCall[0].split("$")[0]].append(vl)
                 if (lhs := typeDict[funcCall[1]]) != "None":
-                    assignmentDict[(funcCall[0].split("$")[0],h)].append(lhs)
+                    assignmentDict[(funcCall[0].split("$")[0],h)].append((lhs,funcCall[1]))
         typeDict = nx.get_node_attributes(g2,"type","None")
         for funcCall in g2.edges(data="type",default=""):
             if funcCall[2] == "func":
                 fs, vl = self.__getFuncArgumentsFromGraph(g2,funcCall[0])
+                vl.append(funcCall[0]) #We also want to match the node of the function
                 h = hash(tuple(fs))
                 #print("Function",funcCall[0],fs,vl, h)
                 if not ((h in g2Dict[funcCall[0].split("$")[0]][0]) and (vl in g2Dict[funcCall[0].split("$")[0]])):
                     g2Dict[funcCall[0].split("$")[0]][0].append(h)
                     g2Dict[funcCall[0].split("$")[0]].append(vl)
                 if (lhs := typeDict[funcCall[1]]) != "None":
-                    assignmentDict[(funcCall[0].split("$")[0],h)].append(lhs)
+                    assignmentDict[(funcCall[0].split("$")[0],h)].append((lhs,funcCall[1]))
         for x in g1Dict.keys():
             g1remInd = []
             g2remInd = []
@@ -608,7 +610,8 @@ class CompareGraphs:
                     for j in range(len(g1Dict[x][i+1])):
                         equivalenceDictSure[g1Dict[x][i+1][j]] = g2Dict[x][ind+1][j]
                     if len(assignmentDict[(x,g1Dict[x][0][i])]) == 2:
-                        equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][i])][0]] = assignmentDict[(x,g1Dict[x][0][i])][1]
+                        equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][i])][0][0]] = assignmentDict[(x,g1Dict[x][0][i])][1][0]
+                        equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][i])][0][1]] = assignmentDict[(x,g1Dict[x][0][i])][1][1]
             g1remInd = sorted(g1remInd,reverse=True)
             g2remInd = sorted(g2remInd,reverse=True)
             for k in range(len(g1remInd)):
@@ -621,7 +624,8 @@ class CompareGraphs:
         for x in g1Dict.keys():
             if (len(g1Dict[x][0]) == 1) and (len(g2Dict[x][0]) == 1):
                 if (len(assignmentDict[(x,g1Dict[x][0][0])]) == 1) and (len(assignmentDict[(x,g2Dict[x][0][0])]) == 1):
-                    equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][0])][0]] = assignmentDict[(x,g2Dict[x][0][0])][0]
+                    equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][0])][0][0]] = assignmentDict[(x,g2Dict[x][0][0])][0][0] #Signatures do not mathc here!!
+                    equivalenceDictUnsure[assignmentDict[(x,g1Dict[x][0][0])][0][1]] = assignmentDict[(x,g2Dict[x][0][0])][0][1]
 
                 if (len(g1Dict[x][1]) == len(g2Dict[x][1])):
                     for y in range(len(g1Dict[x][1])):
