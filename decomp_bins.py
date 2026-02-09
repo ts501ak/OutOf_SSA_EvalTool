@@ -88,7 +88,7 @@ def main():
     clear_and_create_dir(DECOMP_DIR)
     clear_and_create_dir(FUNCS_DIR)
 
-    tasks = [p for p in BINS_DIR.iterdir() if p.is_file()]
+    tasks = [p for p in BINS_DIR.iterdir() if p.is_file() and p.name != ".gitignore" ]
     
     if not tasks:
         print("No binaries found.")

@@ -82,7 +82,7 @@ def main():
     clear_and_create_dir(RES_DIR)
     global_avg = StatisticsClass()
     
-    tasks = [f for f in FUNCS_DIR.iterdir() if f.is_file()]
+    tasks = [f for f in FUNCS_DIR.iterdir() if f.is_file() and f.name != ".gitignore" ]
     
     if not tasks:
         print("No function files found.")
