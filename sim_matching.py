@@ -1,7 +1,7 @@
-import networkx as nx
-from typing import DefaultDict, Dict, Set, Tuple, Self
-from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 from collections import defaultdict
+import networkx as nx
+from typing import DefaultDict, Dict, Set, Self
+from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 import matplotlib.pyplot as plt
 from time import time_ns
 
@@ -23,38 +23,59 @@ class StatisticsClass:
         self.timeNeeded = []
         self.lastGED = 0
 
-    def fuseStatObj(self,statobj :Self):
-        self.runs += statobj.runs
-        self.anzZhk1.extend(statobj.anzZhk1)
-        self.anzZhk2.extend(statobj.anzZhk2)
-        self.matchedZhk += statobj.matchedZhk
-        self.halfmatchedZhk += statobj.halfmatchedZhk
-        self.notmatchedZhk += statobj.notmatchedZhk
-        self.totalGED += statobj.totalGED
-        self.savePoints.extend(statobj.savePoints)
-        self.totalNodes1.extend(statobj.totalNodes1)
-        self.totalNodes2.extend(statobj.totalNodes2)
-        self.sizeZhk.extend(statobj.sizeZhk)
-        self.timeOuts += statobj.timeOuts
-        self.notimeOut += statobj.notimeOut
-        self.timeNeeded.extend(statobj.timeNeeded)
+    def merge(self, other: 'StatisticsClass'):
+        """Merges another statistics object into this one."""
+        self.runs += other.runs
+        self.anzZhk1.extend(other.anzZhk1)
+        self.anzZhk2.extend(other.anzZhk2)
+        self.matchedZhk += other.matchedZhk
+        self.halfmatchedZhk += other.halfmatchedZhk
+        self.notmatchedZhk += other.notmatchedZhk
+        self.totalGED += other.totalGED
+        self.savePoints.extend(other.savePoints)
+        self.totalNodes1.extend(other.totalNodes1)
+        self.totalNodes2.extend(other.totalNodes2)
+        self.sizeZhk.extend(other.sizeZhk)
+        self.timeOuts += other.timeOuts
+        self.notimeOut += other.notimeOut
+        self.timeNeeded.extend(other.timeNeeded)
+        return self
 
-    def getGED(self):
-        return self.lastGED
+    def __iadd__(self, other):
+        """Allows use of += operator: stats += new_stats"""
+        return self.merge(other)
+
+    def to_dict(self):
+        def safe_avg(data): return sum(data) / len(data) if data else 0
+        total_attempts = self.timeOuts + self.notimeOut
+        
+        return {
+            "runs": self.runs,
+            "total_ged": self.totalGED,
+            "avg_source_zhk": safe_avg(self.anzZhk1),
+            "avg_decomp_zhk": safe_avg(self.anzZhk2),
+            "matched_zhk": self.matchedZhk + self.halfmatchedZhk,
+            "not_matched_zhk": self.notmatchedZhk,
+            "avg_save_points": safe_avg(self.savePoints),
+            "avg_zhk_size": safe_avg(self.sizeZhk),
+            "ged_no_timeout": self.notimeOut,
+            "ged_timeouts": self.timeOuts,
+            "avg_ged_time": round(sum(self.timeNeeded) / total_attempts, 2) if total_attempts > 0 else 0
+        }
 
     def printResults(self):
-        print('%-24s%-20i' % ("#compared code samples",self.runs))
-        print('%-24s%-20i' % ("total GED",self.totalGED))
-        print('%-24s%-20f' % ("average source zhk",sum(self.anzZhk1)/len(self.anzZhk1)))
-        print('%-24s%-20f' % ("average decomp zhk",sum(self.anzZhk2)/len(self.anzZhk2)))
-        print('%-24s%-20i' % ("#matched zhk",self.matchedZhk + self.halfmatchedZhk))
-        print('%-24s%-20i' % ("#not matched zhk",self.notmatchedZhk))
-        print('%-24s%-20f' % ("average save Points",sum(self.savePoints)/len(self.savePoints)))
-        print('%-24s%-20f' % ("average zhk size",sum(self.sizeZhk)/len(self.sizeZhk)))
-        print('%-24s%-20i' % ("GED no Timeout",self.notimeOut))
-        print('%-24s%-20i' % ("GED Timeouts",self.timeOuts))
-        print('%-24s%-20s' % ("average GED Time",str(round((sum(self.timeNeeded)/(self.timeOuts + self.notimeOut)),2))+"s"))
-
+        data = self.to_dict()
+        print('%-24s%-20i' % ("#compared code samples", data["runs"]))
+        print('%-24s%-20i' % ("total GED", data["total_ged"]))
+        print('%-24s%-20f' % ("average source zhk", data["avg_source_zhk"]))
+        print('%-24s%-20f' % ("average decomp zhk", data["avg_decomp_zhk"]))
+        print('%-24s%-20i' % ("#matched zhk", data["matched_zhk"]))
+        print('%-24s%-20i' % ("#not matched zhk", data["not_matched_zhk"]))
+        print('%-24s%-20f' % ("average save Points", data["avg_save_points"]))
+        print('%-24s%-20f' % ("average zhk size", data["avg_zhk_size"]))
+        print('%-24s%-20i' % ("GED no Timeout", data["ged_no_timeout"]))
+        print('%-24s%-20i' % ("GED Timeouts", data["ged_timeouts"]))
+        print('%-24s%-20s' % ("average GED Time", str(data["avg_ged_time"]) + "s"))
 
 class SimilarityMatching:
     MATCH_THRESHOLD = 0.5          
@@ -62,11 +83,15 @@ class SimilarityMatching:
     WEIGHT_PROXIMITY_DECAY = 0.1
     WEIGHT_HINT_BOOST = 0.15 
 
-    def __init__(self, src_graph: nx.DiGraph, src_Code : str, decomp_graph: nx.DiGraph, decomp_Code : str):
-        self._src_graph = src_graph
-        self._decomp_graph = decomp_graph
+    def __init__(self,  src_Code : str, decomp_Code : str):
         self._src_Code = src_Code
         self._decomp_Code = decomp_Code
+
+        
+        self._src_graph = DependencyGraphfromCFunction().getDependencyGraph(
+                self._src_Code)
+        self._decomp_graph = DependencyGraphfromCFunction().getDependencyGraph(
+                self._decomp_Code) 
 
         self._init_mapping()
         self._match_iterative()
@@ -88,6 +113,7 @@ class SimilarityMatching:
         self.hint_mapping = {} 
         self.src_unknowns =  self._calc_unknown_nodes(self._src_graph)
         self.decomp_unknowns = self._calc_unknown_nodes(self._decomp_graph)
+
         compObj = CompareGraphs(self._src_Code,self._decomp_Code)
         safe_matches, unsafe_matches, constants = compObj.getSameVars()
         self.constants = constants
@@ -223,20 +249,21 @@ class SimilarityMatching:
             print(f"{src:<20} -> {decomp:<20} ({score:.2f})")
         print("="*60 + "\n")
 
-    def computeGraphEditDistance(self,timeout = 20,stats : StatisticsClass = StatisticsClass()):
+    def computeGraphEditDistance(self, timeout=20) -> StatisticsClass:
+        stats = StatisticsClass()
         stats.runs += 1
         stats.lastGED = 0
         stats.totalNodes1.append(len(self._src_graph.nodes(data=False)))
         stats.totalNodes2.append(len(self._decomp_graph.nodes(data=False)))
 
-        subgraphDict = DefaultDict(lambda : [[],[]])
+        subgraphDict = defaultdict(lambda: [[], []])
         
-        equivDict = {a : b for a,(b,c) in self.mapping.items()}
-        equivDict = mergeDicts(equivDict,self.constants)
-        equivDict = DefaultDict(lambda : None,equivDict)
+        equivDict = {a: b for a, (b, _) in self.mapping.items()}
+        equivDict = mergeDicts(equivDict, self.constants)
+        equivDict = defaultdict(lambda: None, equivDict)
         equivDict["return"] = "return"
 
-        def areSameNode(n1 : str, n2 : str):
+        def areSameNode(n1, n2):
             if (equivDict[n1["name"]] == n2["name"]) or (equivDict[n2["name"]] == n1["name"]):
                 return True
             else:
@@ -258,8 +285,6 @@ class SimilarityMatching:
 
         sizeConComp = []
 
-        #showGraph(undirSrcGraph)
-        #showGraph(g1zhks)
         for x in nx.connected_components(g1zhks):
             sizeConComp.append(len(x))
             connectedSepeartors = []
@@ -270,14 +295,11 @@ class SimilarityMatching:
                     connectedSepeartors.append(equivDict[z[0]])
                 elif (z[1] in gscrNodes) and (z[0] in x):
                     connectedSepeartors.append(equivDict[z[1]])
-                
+            
             connectedSepeartors = tuple(sorted(list(set(connectedSepeartors))))
-
             subgraphDict[connectedSepeartors][0].append(x)
         
 
-        #showGraph(undirdecompGraph)
-        #showGraph(g2zhks)
         for x in nx.connected_components(g2zhks):
             sizeConComp.append(len(x))
             connectedSepeartors = []
@@ -288,12 +310,14 @@ class SimilarityMatching:
                     connectedSepeartors.append(z[0])
                 elif (z[1] in gdecompNodes) and (z[0] in x):
                     connectedSepeartors.append(z[1])
-                
+            
             connectedSepeartors = tuple(sorted(list(set(connectedSepeartors))))
-
             subgraphDict[connectedSepeartors][1].append(x)
         
-        stats.sizeZhk.append(sum(sizeConComp)/len(sizeConComp))
+        if len(sizeConComp) > 0:
+            stats.sizeZhk.append(sum(sizeConComp)/len(sizeConComp))
+        else:
+            stats.sizeZhk.append(0)
 
         remainsrc = set()
         remaindecomp = set()
@@ -304,7 +328,7 @@ class SimilarityMatching:
                 srcGraph = subgraphDict[zz][0][0].union(gscrNodes)
                 decompGraph = subgraphDict[zz][1][0].union(gdecompNodes)
                 start = time_ns()
-                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph),undirdecompGraph.subgraph(decompGraph),node_match=areSameNode,timeout=timeout)
+                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
                 if int((end-start)/1000000000) > (timeout):
@@ -323,7 +347,7 @@ class SimilarityMatching:
                     stats.halfmatchedZhk += 1
                 decompSet.update(gdecompNodes)
                 start = time_ns()
-                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet),undirdecompGraph.subgraph(decompSet),node_match=areSameNode,timeout=timeout)
+                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet), undirdecompGraph.subgraph(decompSet), node_match=areSameNode, timeout=timeout)
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
                 if int((end-start)/1000000000) > (timeout):
@@ -342,7 +366,7 @@ class SimilarityMatching:
         remaindecomp.update(gdecompNodes)
 
         start = time_ns()
-        stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc),undirdecompGraph.subgraph(remaindecomp),node_match=areSameNode,timeout=timeout)
+        stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc), undirdecompGraph.subgraph(remaindecomp), node_match=areSameNode, timeout=timeout)
         end = time_ns()
         stats.timeNeeded.append((end-start)/1000000000)
         if int((end-start)/1000000000) > (timeout):
@@ -363,16 +387,11 @@ def main():
     try:
         with open("/home/jannis/Desktop/ex1.txt") as f:
             cCode = f.read()
-        dgrc = DependencyGraphfromCFunction()
-        dg = dgrc.getDependencyGraph(cCode)
         
         with open("/home/jannis/Desktop/ex2.txt") as f:
             cCode2 = f.read()
-        dgrc2 = DependencyGraphfromCFunction()
-        dgg = dgrc2.getDependencyGraph(cCode2)
         
-        sm = SimilarityMatching(dg, cCode, dgg, cCode2)
-        #sm.print_results()
+        sm = SimilarityMatching(cCode, cCode2)
         sm.computeGraphEditDistance(20).printResults()
     except FileNotFoundError:
         print("Error: Test files not found. Please check file paths in main().")

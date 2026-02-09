@@ -1,8 +1,6 @@
-import os
 import re
-import sys
-import argparse
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 def find_matching_brace(content: str, start_index: int, open_char: str = '{', close_char: str = '}') -> int:
     """
@@ -36,6 +34,7 @@ def skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int,
         next_index: The index of the first character that is NOT whitespace or an attribute.
         is_declaration_stopper: True if we hit a ';' (indicating this is just a declaration).
     """
+
     i = start_index
     length = len(content)
     
@@ -60,10 +59,8 @@ def skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int,
         # Peek ahead to see if it looks like a word followed by parens
         if char.isalpha() or char == '_':
             # Identify the word
-            word_start = i
             while i < length and (content[i].isalnum() or content[i] == '_'):
                 i += 1
-            word = content[word_start:i]
             
             # Check what follows the word (ignoring space)
             j = i
@@ -88,7 +85,7 @@ def skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int,
 
     return i, True
 
-def extract_function(file_name: str, func_name: str) -> Optional[str]:
+def extract_function(file_path: Union[str, Path], func_name: str) -> Optional[str]:
     """
     Parses a C/Preprocessed C file to find and extract the full definition 
     of a specific function.
@@ -99,24 +96,18 @@ def extract_function(file_name: str, func_name: str) -> Optional[str]:
     3. If verified, scan backwards to find the start of the signature (return type).
     4. Extract the body using brace counting.
     """
+    target_path = Path(file_path)
     
-    # 1. Construct path and read file
-    c_filepath = os.path.join("./someoutdir", file_name)
-    
-    if not os.path.isfile(c_filepath):
-        print(f"Error: File not found: {c_filepath}")
+    if not target_path.exists():
         return None
-
-    print(f"Targeting file: {c_filepath}")
 
     try:
-        with open(c_filepath, 'r') as f:
-            content = f.read()
-    except IOError as e:
-        print(f"Error reading file {c_filepath}: {e}")
+        content = target_path.read_text(encoding='utf-8', errors='replace')
+    except Exception as e:
+        print(f"Error reading {target_path}: {e}")
         return None
 
-    # 2. Iterate over all occurrences of the function name
+    # 1. Iterate over all occurrences of the function name
     # We use a regex to find the name ensuring it's a whole word boundary
     name_pattern = re.compile(rf'\b{re.escape(func_name)}\b')
     
@@ -131,7 +122,7 @@ def extract_function(file_name: str, func_name: str) -> Optional[str]:
             
         if i >= len(content) or content[i] != '(':
             continue # Not a function call/def (maybe a variable use)
-            
+       
         # Skip arguments (...)
         args_close = find_matching_brace(content, i, '(', ')')
         if args_close == -1:
@@ -148,12 +139,11 @@ def extract_function(file_name: str, func_name: str) -> Optional[str]:
             continue
 
         body_start_brace = post_args_index
-        print(f"Found definition for '{func_name}' starting at index {name_start}...")
 
-        # 3. Find the start of the signature (Backtracking)
+        # 2. Find the start of the signature (Backtracking)
         # We scan backwards from the name to capture "void", "static", "extern", etc.
         # We stop if we hit a semicolon ';', closing brace '}', or start of file.
-        
+
         def_start_index = name_start
         scan_idx = name_start - 1
         
@@ -162,6 +152,7 @@ def extract_function(file_name: str, func_name: str) -> Optional[str]:
             if char == ';' or char == '}':
                 def_start_index = scan_idx + 1
                 break
+
             # Note: We intentionally don't break on '{' to be safe, 
             # though global functions shouldn't be inside braces.
             scan_idx -= 1
@@ -169,32 +160,11 @@ def extract_function(file_name: str, func_name: str) -> Optional[str]:
         if scan_idx < 0:
             def_start_index = 0
 
-        # 4. Extract the Body ---
+        # 3. Extract the Body ---
         body_end_brace = find_matching_brace(content, body_start_brace, '{', '}')
         
         if body_end_brace != -1:
             full_code = content[def_start_index : body_end_brace + 1].strip()
             return full_code
-        else:
-            print(f"Error: Found definition start but body braces are unbalanced.")
-            return None
 
-    print(f"Error: Function '{func_name}' definition not found in {file_name}.")
     return None
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Extracts the complete code definition of a C function from a file in ./someoutdir/."
-    )
-    
-    parser.add_argument("file_name", type=str, help="File name (e.g., ls.i)")
-    parser.add_argument("func_name", type=str, help="Function name (e.g., main)")
-
-    args = parser.parse_args()
-
-    result = extract_function(file_name=args.file_name, func_name=args.func_name)
-
-    if result:
-        print("\n--- Extracted Code ---")
-        print(result)
-        print("----------------------")

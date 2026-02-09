@@ -1,0 +1,4 @@
+[submodule "dewolf"]
+	path = dewolf
+	url = git@github.com:fkie-cad/dewolf.git
+	branch = issue-452-Improve_Conditional_Out-of-SSA
