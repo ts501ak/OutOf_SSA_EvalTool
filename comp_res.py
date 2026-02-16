@@ -1,66 +1,63 @@
 #!/usr/bin/env python3
 
+import sys
 import json
 import argparse
 from pathlib import Path
-from multiprocessing import Pool, cpu_count
-from functools import partial
+from shared import load_jobs
+from pebble import ProcessPool
+from multiprocessing import cpu_count
+from sim_matching import SimilarityMatching
 
-from sim_matching import SimilarityMatching, StatisticsClass
-from extract import extract_function
-from shared import (
-    DECOMP_DIR,
-    FUNCS_DIR,
-    SRC_DIR,
-    GRAPH_EDIT_DISTANCE_TIMEOUT,
-    RES_DIR,
-    clear_and_create_dir,
-    get_unique_path,
-)
+def _comp_res_for_job(args):
+    res_path = args.get("res_path")
+    src_func_path = args.get("src_func_path")
+    decomp_func_path = args.get("decomp_func_path")
+    graph_edit_timeout = args.get("graph_edit_timeout")
+    
+    try:
+        src_func_code = Path(src_func_path).read_text()
+    except Exception as e:
+        print(f"[-] Error reading {src_func_path}: {e}", file=sys.stderr)
+        return
 
-def write_statistics(statistics: StatisticsClass, path: Path):
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(statistics.to_dict(), f, indent=4)
+    try:
+        decomp_func_code = Path(decomp_func_path).read_text()
+    except Exception as e:
+        print(f"[-] Error reading {decomp_func_path}: {e}", file=sys.stderr)
+        return
 
+    if src_func_code == "":
+        print(f"[-] Skipping {res_path} since src_func_code is empty", file=sys.stderr)
+        return
 
-def process_binary_task(funcs_file: Path, timeout: int):
-    """
-    Processes a single binary's functions and returns binary statistics.
-    """
-    bin_name = funcs_file.stem
-    print(f"[+] Analyzing binary: {bin_name}")
+    if decomp_func_code == "":
+        print(f"[-] Skipping {res_path} since decomp_func_code is empty", file=sys.stderr)
+        return
 
-    src_file = SRC_DIR / f"{bin_name}.c"
-    decomp_file = DECOMP_DIR / f"{bin_name}.c"
+    try:
+        sm = SimilarityMatching(src_func_code, decomp_func_code)
+        stats = sm.computeGraphEditDistance(graph_edit_timeout)
+        with open(res_path, "w") as f:
+            json.dump(stats.to_dict(),f, indent=4)
+    except Exception as e:
+        print(f"[-] Failed to write results to {res_path}: {e}")
+    
 
-    if not src_file.exists() or not decomp_file.exists():
-        return None
+def comp_res(worker_count: int):
+    jobs = load_jobs()
+    if(not jobs):
+        print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
+        return
 
-    bin_avg = StatisticsClass()
-    bin_res_dir = RES_DIR / f"{bin_name}"
-    bin_res_dir.mkdir(parents=True, exist_ok=True)
-
-    function_names = [
-        line.strip() for line in funcs_file.read_text().splitlines() if line.strip()
-    ]
-
-    for func in function_names:
-        src_code = extract_function(src_file, func)
-        decomp_code = extract_function(decomp_file, func)
-
-        if src_code and decomp_code:
-            sm = SimilarityMatching(src_code, decomp_code)
-            stats = sm.computeGraphEditDistance(timeout)
-
-            func_res_file = get_unique_path(bin_res_dir / f"{func}.json")
-            write_statistics(stats, func_res_file)
-
-            bin_avg += stats
-
-    bin_avg_file = get_unique_path(bin_res_dir / f"{bin_name}_avg.json")
-    write_statistics(bin_avg, bin_avg_file)
-
-    return bin_avg
+    print(f"[*] Computing results for {len(jobs)} functions using {worker_count} workers...")
+    with ProcessPool(max_workers=worker_count) as pool:
+        future = pool.map(_comp_res_for_job, jobs)
+        try:
+            for _ in future.result():
+                pass
+        except Exception as e:
+            print(f"[-] Error during function extraction pool execution: {e}", file=sys.stderr)
 
 
 def main():
@@ -71,34 +68,8 @@ def main():
         default=cpu_count(),
         help="Number of processes"
     )
-    parser.add_argument(
-        "-t", "--timeout", 
-        type=int, 
-        default=GRAPH_EDIT_DISTANCE_TIMEOUT,
-        help="GED timeout in seconds"
-    )
     args = parser.parse_args()
-
-    clear_and_create_dir(RES_DIR)
-    global_avg = StatisticsClass()
-    
-    tasks = [f for f in FUNCS_DIR.iterdir() if f.is_file() and f.name != ".gitignore" ]
-    
-    if not tasks:
-        print("No function files found.")
-        return
-
-    worker = partial(process_binary_task, timeout=args.timeout)
-
-    with Pool(processes=args.processes) as pool:
-        for result in pool.imap_unordered(worker, tasks):
-            if result:
-                global_avg += result
-
-    global_avg_file = get_unique_path(RES_DIR / "global_avg.json")
-    write_statistics(global_avg, global_avg_file)
-    print("Done.")
-
+    comp_res(args.processes)
 
 if __name__ == "__main__":
     main()

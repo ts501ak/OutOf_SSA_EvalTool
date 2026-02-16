@@ -2,71 +2,73 @@
 
 import os
 import sys
+import gc
 import argparse
 import contextlib
-from pathlib import Path
-from multiprocessing import Pool, cpu_count
-from functools import partial
+from multiprocessing import cpu_count
+from pebble import ProcessPool
 
 from shared import (
-    BASE_DIR,
-    BINS_DIR,
-    DECOMP_DIR,
-    FUNCS_DIR,
-    clear_and_create_dir,
+    DEWOLF_DIR,
+    DECOMP_TIMEOUT_SECONDS,
+    load_jobs,
 )
 
 # Add the 'dewolf' directory to sys.path
-dewolf_dir = BASE_DIR / "dewolf"
-sys.path.insert(0, str(dewolf_dir))
+sys.path.insert(0, str(DEWOLF_DIR))
 
 # Import decompiler
 try:
-    from decompile import Decompiler
+    from decompile import Decompiler #type: ignore
 except ImportError:
-    print("Error importing dewolf")
+    print("Error importing dewolf", file=sys.stderr)
     sys.exit(1)
 
-def decompile_binary(binary_path: Path, ssa_method: str):
-    """
-    Decompiles all functions in a binary.
-    Returns (decompiled_code, function_names).
-    """
-    code = ""
-    all_functions = []
+def _decompile_func(args):
+    bin_path = args.get("bin_path")
+    func_name = args.get("func_name")
+    ssa_method = args.get("ssa_method")
+    decomp_out_path = args.get("decomp_out_path")
 
+    success = False
+    decompiler = None
     try:
         with open(os.devnull, "w") as devnull:
             with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
                 options = Decompiler.create_options()
                 options.update({"out-of-ssa-translation.mode": ssa_method})
+                
+                decompiler = Decompiler.from_path(bin_path)
 
-                decomp = Decompiler.from_path(str(binary_path), options)
-                all_functions = decomp._frontend.get_all_function_names()
-                code = decomp.decompile_all(all_functions, options).code
-    except Exception:
-        pass
+                task, code = decompiler.decompile(func_name)
+                success = not task.failed
 
-    return code, all_functions
+        if success:
+            with open(decomp_out_path, "w") as f:
+                f.write(code)
+
+    except Exception as e:
+        print(f"[-] Error decompiling function {func_name} in {bin_path}: {e}", file=sys.stderr)
+    finally:
+        del decompiler
+        gc.collect()
 
 
-def worker_task(bin_path: Path, ssa_method: str):
-    """
-    Worker function to process a single binary and write results to unique paths.
-    """
-    bin_name = bin_path.name
-    print(f"[+] Processing {bin_name}")
-
-    code, functions = decompile_binary(bin_path, ssa_method)
-
-    if not code:
+def decomp_bins(worker_count: int, decompile_timeout: int):
+    jobs = load_jobs()
+    if(not jobs):
+        print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
         return
 
-    decomp_out = DECOMP_DIR / f"{bin_name}.c"
-    decomp_out.write_text(code)
-
-    funcs_out = FUNCS_DIR / f"{bin_name}.func"
-    funcs_out.write_text("\n".join(functions))
+    print(f"[*] Decompiling {len(jobs)} functions using {worker_count} workers...")
+    with ProcessPool(max_workers=worker_count) as pool:
+        future = pool.map(_decompile_func, jobs, timeout=decompile_timeout)
+        try:
+            for _ in future.result():
+                pass
+        except Exception as e:
+            print(f"[-] Error during decompilation pool execution: {e}", file=sys.stderr)
+            gc.collect()
 
 
 def main():
@@ -78,31 +80,13 @@ def main():
         help=f"Number of processes (default: {cpu_count()})"
     )
     parser.add_argument(
-        "-m", "--ssa-method", 
-        type=str, 
-        default="conditional",
-        help="SSA translation mode (default: 'conditional')"
+        "-t", "--decompile-timeout", 
+        type=int, 
+        default=DECOMP_TIMEOUT_SECONDS,
+        help=f"Dewolf decompile timeout (default: {DECOMP_TIMEOUT_SECONDS})"
     )
     args = parser.parse_args()
-
-    clear_and_create_dir(DECOMP_DIR)
-    clear_and_create_dir(FUNCS_DIR)
-
-    tasks = [p for p in BINS_DIR.iterdir() if p.is_file() and p.name != ".gitignore" ]
-    
-    if not tasks:
-        print("No binaries found.")
-        return
-
-    print(f"Decompiling {len(tasks)} binaries with {args.processes} workers...")
-    
-    worker = partial(worker_task, ssa_method=args.ssa_method)
-
-    with Pool(processes=args.processes) as pool:
-        pool.map(worker, tasks)
-    
-    print("Done.")
-
+    decomp_bins(args.processes, args.decompile_timeout)
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,14 @@
-import re
-from pathlib import Path
-from typing import Optional, Union
+#!/usr/bin/env python3
 
-def find_matching_brace(content: str, start_index: int, open_char: str = '{', close_char: str = '}') -> int:
+import re
+import sys
+import argparse
+from pathlib import Path
+from shared import load_jobs
+from pebble import ProcessPool
+from multiprocessing import cpu_count
+
+def _find_matching_brace(content: str, start_index: int, open_char: str = '{', close_char: str = '}') -> int:
     """
     Finds the index of the closing brace matching the one at start_index.
     Handles nested braces.
@@ -24,7 +30,7 @@ def find_matching_brace(content: str, start_index: int, open_char: str = '{', cl
         i += 1
     return -1
 
-def skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int, bool]:
+def _skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int, bool]:
     """
     Skips whitespace and GCC-style attributes (e.g. __attribute__((...))) 
     starting from start_index.
@@ -70,7 +76,7 @@ def skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int,
             if j < length and content[j] == '(':
                 # It is likely an attribute with arguments: attribute (...)
                 # Skip the balanced parens
-                close_index = find_matching_brace(content, j, '(', ')')
+                close_index = _find_matching_brace(content, j, '(', ')')
                 if close_index != -1:
                     i = close_index + 1
                     continue
@@ -85,7 +91,7 @@ def skip_whitespace_and_attributes(content: str, start_index: int) -> tuple[int,
 
     return i, True
 
-def extract_function(file_path: Union[str, Path], func_name: str) -> Optional[str]:
+def _extract_function_from_buf(buf: str, func_name: str) -> str:
     """
     Parses a C/Preprocessed C file to find and extract the full definition 
     of a specific function.
@@ -96,46 +102,35 @@ def extract_function(file_path: Union[str, Path], func_name: str) -> Optional[st
     3. If verified, scan backwards to find the start of the signature (return type).
     4. Extract the body using brace counting.
     """
-    target_path = Path(file_path)
-    
-    if not target_path.exists():
-        return None
-
-    try:
-        content = target_path.read_text(encoding='utf-8', errors='replace')
-    except Exception as e:
-        print(f"Error reading {target_path}: {e}")
-        return None
-
     # 1. Iterate over all occurrences of the function name
     # We use a regex to find the name ensuring it's a whole word boundary
     name_pattern = re.compile(rf'\b{re.escape(func_name)}\b')
     
-    for match in name_pattern.finditer(content):
+    for match in name_pattern.finditer(buf):
         name_start = match.start()
         name_end = match.end()
         
         # Expectation: Name -> whitespace -> '('
         i = name_end
-        while i < len(content) and content[i].isspace():
+        while i < len(buf) and buf[i].isspace():
             i += 1
             
-        if i >= len(content) or content[i] != '(':
+        if i >= len(buf) or buf[i] != '(':
             continue # Not a function call/def (maybe a variable use)
        
         # Skip arguments (...)
-        args_close = find_matching_brace(content, i, '(', ')')
+        args_close = _find_matching_brace(buf, i, '(', ')')
         if args_close == -1:
             continue
             
         # Check what comes after arguments
         # Could be: '{' (Definition), ';' (Declaration), or attributes and then '{'
-        post_args_index, is_stopper = skip_whitespace_and_attributes(content, args_close + 1)
+        post_args_index, is_stopper = _skip_whitespace_and_attributes(buf, args_close + 1)
         
         if is_stopper:
             continue
             
-        if post_args_index >= len(content) or content[post_args_index] != '{':
+        if post_args_index >= len(buf) or buf[post_args_index] != '{':
             continue
 
         body_start_brace = post_args_index
@@ -148,7 +143,7 @@ def extract_function(file_path: Union[str, Path], func_name: str) -> Optional[st
         scan_idx = name_start - 1
         
         while scan_idx >= 0:
-            char = content[scan_idx]
+            char = buf[scan_idx]
             if char == ';' or char == '}':
                 def_start_index = scan_idx + 1
                 break
@@ -161,10 +156,70 @@ def extract_function(file_path: Union[str, Path], func_name: str) -> Optional[st
             def_start_index = 0
 
         # 3. Extract the Body ---
-        body_end_brace = find_matching_brace(content, body_start_brace, '{', '}')
+        body_end_brace = _find_matching_brace(buf, body_start_brace, '{', '}')
         
         if body_end_brace != -1:
-            full_code = content[def_start_index : body_end_brace + 1].strip()
+            full_code = buf[def_start_index : body_end_brace + 1].strip()
             return full_code
 
-    return None
+    raise Exception(f"Function {func_name} not found!")
+
+def _process_function_pair(args):
+    func_name = args.get("func_name")
+    src_path = args.get("src_path")
+    decomp_out_path = args.get("decomp_out_path")
+    src_func_path = args.get("src_func_path")
+    decomp_func_path = args.get("decomp_func_path")
+
+    try:
+        src_input = Path(src_path).read_text()
+        src_match = _extract_function_from_buf(src_input, func_name)
+    except Exception as e:
+        print(f"[-] Error extracting {func_name} from {src_path}: {e}", file=sys.stderr)
+        src_match = ""
+
+    try:
+        decomp_input = Path(decomp_out_path).read_text()
+        decomp_match = _extract_function_from_buf(decomp_input, func_name)
+    except Exception as e:
+        print(f"[-] Error extracting {func_name} from {decomp_out_path}: {e}", file=sys.stderr)
+        decomp_match = ""
+    try:
+        Path(src_func_path).write_text(src_match)
+    except Exception as e:
+        print(f"[-] Error writing to {src_func_path}: {e}", file=sys.stderr)
+        return
+    try:
+        Path(decomp_func_path).write_text(decomp_match)
+    except Exception as e:
+        print(f"[-] Error writing to {decomp_func_path}: {e}", file=sys.stderr)
+        return
+
+def process_functions(worker_count: int):
+    jobs = load_jobs()
+    if(not jobs):
+        print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
+        return
+
+    print(f"[*] Processing functions for {len(jobs)} using {worker_count} workers...")
+    with ProcessPool(max_workers=worker_count) as pool:
+        future = pool.map(_process_function_pair, jobs)
+        try:
+            for _ in future.result():
+                pass
+        except Exception as e:
+            print(f"[-] Error during function extraction pool execution: {e}", file=sys.stderr)
+    
+def main():
+    parser = argparse.ArgumentParser(description="Parallel Binary Decompiler")
+    parser.add_argument(
+        "-p", "--processes", 
+        type=int, 
+        default=cpu_count(),
+        help=f"Number of processes (default: {cpu_count()})"
+    )
+    args = parser.parse_args()
+    process_functions(args.processes)
+
+if __name__ == "__main__":
+    main()
