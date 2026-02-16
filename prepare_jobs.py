@@ -10,7 +10,6 @@ from multiprocessing import cpu_count
 
 
 from shared import (
-    BASE_DIR,
     DEWOLF_DIR,
     SRC_DIR,
     RES_DIR,
