@@ -43,9 +43,12 @@ def _decompile_func(args):
                 task, code = decompiler.decompile(func_name)
                 success = not task.failed
 
-        if success:
-            with open(decomp_out_path, "w") as f:
+        if not success:
+            raise Exception(task.failure_origin)
+
+        with open(decomp_out_path, "w") as f:
                 f.write(code)
+
 
     except Exception as e:
         print(f"[-] Error decompiling function {func_name} in {bin_path}: {e}", file=sys.stderr)
