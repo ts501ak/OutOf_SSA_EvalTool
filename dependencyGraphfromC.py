@@ -2,6 +2,7 @@ from typing import DefaultDict
 import networkx as nx
 import re
 import matplotlib.pyplot as plt
+import processVariable
 
 def fnv1a_64(s):
     h = 0xcbf29ce484222325  # 64-bit offset basis
@@ -514,9 +515,11 @@ def mergeDicts(d1 :dict, d2 : dict):
     return res   
 
 class CompareGraphs:
-    def __init__(self,c1 : str,c2:str, buildInNames : list[tuple[2]] = []):
+    def __init__(self,c1 : str,c2:str,depGraph1 : nx.DiGraph = None,depGraph2 : nx.DiGraph = None, buildInNames : list[tuple[2]] = []):
         self.c1 = c1
         self.c2 = c2
+        self.c1DepGraph = depGraph1
+        self.c2DepGraph = depGraph2
         self.replaceBuildInNames(buildInNames)
 
     def replaceBuildInNames(self,names : list[tuple[2]]):
@@ -536,14 +539,20 @@ class CompareGraphs:
         return equivDict
 
     def getSameVars(self):
-        dgfc = DependencyGraphfromCFunction()
-        dg1 = dgfc.getDependencyGraph(self.c1)
-        dg2 = dgfc.getDependencyGraph(self.c2)
-        df1 = dgfc.getFuncGraph(self.c1)
-        df2 = dgfc.getFuncGraph(self.c2)
-        a,b = self.getSameVarsfromFunctionCalls(dg1,dg2)
+        if self.c1DepGraph == None:
+            self.c1DepGraph = processVariable._DependencyGraphObj.getDependencyGraph(self.c1)
+
+        if self.c2DepGraph == None:
+            self.c2DepGraph = processVariable._DependencyGraphObj.getDependencyGraph(self.c2)
+
+        df1 = processVariable._DependencyGraphObj.getFuncGraph(self.c1)
+        df2 = processVariable._DependencyGraphObj.getFuncGraph(self.c2)
+        a,b = self.getSameVarsfromFunctionCalls(self.c1DepGraph,self.c2DepGraph)
         c,d = self.getSameVarsfromFunctionCalls(df1,df2)
         e = self.getSameConstants(df1,df2)
+
+        del df1
+        del df2
         return mergeDicts(a,c), mergeDicts(b,d),e
        
 
@@ -635,6 +644,7 @@ class CompareGraphs:
 
 
 def main():
+    processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
     with open("/home/jannis/Desktop/ex1.txt") as f:
         c1 = f.read()
         print(c1)

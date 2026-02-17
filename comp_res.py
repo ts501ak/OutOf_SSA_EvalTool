@@ -8,6 +8,8 @@ from shared import load_jobs
 from pebble import ProcessPool
 from multiprocessing import cpu_count
 from sim_matching import SimilarityMatching
+from dependencyGraphfromC import DependencyGraphfromCFunction
+import processVariable
 
 def _comp_res_for_job(args):
     res_path = args.get("res_path")
@@ -38,6 +40,7 @@ def _comp_res_for_job(args):
     try:
         sm = SimilarityMatching(src_func_code, decomp_func_code)
         stats = sm.computeGraphEditDistance(graph_edit_timeout)
+        del sm
         with open(res_path, "w") as f:
             json.dump(stats.to_dict(),f, indent=4)
     except Exception as e:
@@ -51,7 +54,7 @@ def comp_res(worker_count: int):
         return
 
     print(f"[*] Computing results for {len(jobs)} functions using {worker_count} workers...")
-    with ProcessPool(max_workers=worker_count) as pool:
+    with ProcessPool(max_workers=worker_count,initializer=init_worker) as pool:
         future = pool.map(_comp_res_for_job, jobs)
         try:
             for _ in future.result():
@@ -59,6 +62,8 @@ def comp_res(worker_count: int):
         except Exception as e:
             print(f"[-] Error during function extraction pool execution: {e}", file=sys.stderr)
 
+def init_worker():
+    processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
 
 def main():
     parser = argparse.ArgumentParser(description="Parallel Similarity Matching Stats")

@@ -4,6 +4,7 @@ from typing import DefaultDict, Dict, Set
 from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 import matplotlib.pyplot as plt
 from time import time_ns
+import processVariable
 
 class StatisticsClass:
     def __init__(self):
@@ -86,11 +87,10 @@ class SimilarityMatching:
     def __init__(self,  src_Code : str, decomp_Code : str):
         self._src_Code = src_Code
         self._decomp_Code = decomp_Code
-
         
-        self._src_graph = DependencyGraphfromCFunction().getDependencyGraph(
+        self._src_graph = processVariable._DependencyGraphObj.getDependencyGraph(
                 self._src_Code)
-        self._decomp_graph = DependencyGraphfromCFunction().getDependencyGraph(
+        self._decomp_graph = processVariable._DependencyGraphObj.getDependencyGraph(
                 self._decomp_Code) 
 
         self._init_mapping()
@@ -114,8 +114,9 @@ class SimilarityMatching:
         self.src_unknowns =  self._calc_unknown_nodes(self._src_graph)
         self.decomp_unknowns = self._calc_unknown_nodes(self._decomp_graph)
 
-        compObj = CompareGraphs(self._src_Code,self._decomp_Code)
+        compObj = CompareGraphs(self._src_Code,self._decomp_Code,self._src_graph,self._decomp_graph)
         safe_matches, unsafe_matches, constants = compObj.getSameVars()
+        del compObj
         self.constants = constants
 
         for src_var, d_var in safe_matches.items():
@@ -384,6 +385,7 @@ def showGraph(g : nx.DiGraph):
     plt.show()
 
 def main():     
+    processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
     try:
         with open("/home/jannis/Desktop/ex1.txt") as f:
             cCode = f.read()
