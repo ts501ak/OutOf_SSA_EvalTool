@@ -61,7 +61,8 @@ class StatisticsClass:
             "avg_zhk_size": safe_avg(self.sizeZhk),
             "ged_no_timeout": self.notimeOut,
             "ged_timeouts": self.timeOuts,
-            "avg_ged_time": round(sum(self.timeNeeded) / total_attempts, 2) if total_attempts > 0 else 0
+            "avg_ged_time": round(sum(self.timeNeeded) / total_attempts, 2) if total_attempts > 0 else 0,
+            "ged_times" : self.timeNeeded
         }
 
     def printResults(self):
