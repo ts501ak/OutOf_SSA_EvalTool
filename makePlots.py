@@ -4,11 +4,12 @@ import argparse
 import pathlib
 import json
 
-def main():
+def makePlots():
     parsi = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
     parsi.add_argument("--path","-p",type=str,help="Path to the results folder",default="./res/")
     args = parsi.parse_args()
 
+    total = 0
     totalGED = 0
     avgSourceZHK = []
     avgDecompZHK = []
@@ -21,23 +22,33 @@ def main():
     avgGEDTime = []
     gedTimes = []
 
-    for stat in iterJSONFiles(args.path):
-        totalGED += stat["total_ged"]
-        avgSourceZHK.append(stat["avg_source_zhk"])
-        avgDecompZHK.append(stat["avg_decomp_zhk"])
-        matchedZHK += stat["matched_zhk"]
-        notMatchedZHK += stat["not_matched_zhk"]
-        avgSavePoints.append(stat["avg_save_points"])
-        avgZHKSize.append(stat["avg_zhk_size"])
-        GEDTimeout += stat["ged_timeouts"]
-        GEDNoTimeout += stat["ged_no_timeout"]
-        avgGEDTime.append(stat["avg_ged_time"])
-        gedTimes.extend(stat["ged_times"])
-
-    plot_histogram(gedTimes)
+    try:
+        for stat in iterJSONFiles(args.path):
+            try:
+                total += 1
+                totalGED += stat["total_ged"]
+                avgSourceZHK.append(stat["avg_source_zhk"])
+                avgDecompZHK.append(stat["avg_decomp_zhk"])
+                matchedZHK += stat["matched_zhk"]
+                notMatchedZHK += stat["not_matched_zhk"]
+                avgSavePoints.append(stat["avg_save_points"])
+                avgZHKSize.append(stat["avg_zhk_size"])
+                GEDTimeout += stat["ged_timeouts"]
+                GEDNoTimeout += stat["ged_no_timeout"]
+                avgGEDTime.append(stat["avg_ged_time"])
+                gedTimes.extend(stat["ged_times"])
+            except Exception as e:
+                print("[ERROR]",e)
+                continue
+    except Exception as e:
+        print("[ERROR] ",e)
+    
+    plot_histogramm(gedTimes,"Histrogramm der GED-Zeiten","benötigte GED-Zeit","Häufigkeit",True)
+    plot_histogramm2Sets(avgSourceZHK,avgDecompZHK,"Durchschnittliche Größe der ZHK","Größe der ZHK","Häufigkeit","Source-Code","Decompilat")
     plot_bar_chart([GEDTimeout,GEDNoTimeout],["Timeout","no Timeout"],"Timeouts during GED calculation")
     plot_bar_chart([np.mean(avgSourceZHK),np.mean(avgDecompZHK),np.mean(matchedZHK),np.mean(notMatchedZHK),np.mean(avgZHKSize)],["avg #ZHK Source-Code","avg #ZHK Decompilat","avg matched ZHK","avg non-matched ZHK","avg Größe ZHK"],"Zusammenhangskomponenten")
     print("TOTAL GED:",totalGED)
+    print("TOTAL FUNCTIONS EVALUATED:",total)
 
 
 def getTotalGED(path : str):
@@ -87,8 +98,7 @@ def plot_bar_chart(values, labels=None, title="Balkendiagramm", colors=None):
     plt.grid(axis='y', alpha=0.5)
     plt.show()
 
-
-def plot_histogram(data):
+def plot_histogramm(data,title,x,y,withavg : bool):
     """
     Plottet ein Histogramm der Floats in 5er-Bins.
     
@@ -108,15 +118,43 @@ def plot_histogram(data):
     bins = np.arange(0, max_val + 5, 5)
 
     plt.figure(figsize=(8,5))
-    plt.hist(data, bins=bins, edgecolor='black')
-    plt.axvline(mean_value, color='red', linestyle='--', linewidth=2, label=f'Durchschnitt: {mean_value:.2f}')
+    plt.hist(data, bins=bins, density=True, edgecolor='black')
+    if withavg:
+        plt.axvline(mean_value, color='red', linestyle='--', linewidth=2, label=f'Durchschnitt: {mean_value:.2f}')
     plt.legend()
-    plt.title("Histogramm der GED-Zeiten")
-    plt.xlabel("benötigte GED-Zeit")
-    plt.ylabel("Häufigkeit")
+    plt.title(title)
+    plt.xlabel(x)
+    plt.ylabel(y)
     plt.grid(axis='y', alpha=0.75)
     plt.show()
 
+def plot_histogramm2Sets(data1,data2,title,x,y,label1,label2):
+    """
+    Plottet ein Histogramm der Floats in 5er-Bins.
+    
+    Parameters
+    ----------
+    data : list of float
+        Die zu analysierenden Werte.
+    """
+    if (not data1) or (not data2):
+        print("Keine Daten zum Plotten!")
+        return
+
+    max_val = max(*data1,*data2)
+    
+    # Bin-Grenzen: 0, 5, 10, ..., bis zum nächsten Vielfachen von 5 über max_val
+    bins = np.arange(0, max_val + 5, 5)
+
+    plt.figure(figsize=(8,5))
+    plt.hist(data1,alpha=0.5, bins=bins,density=True,label=label1)
+    plt.hist(data2,alpha=0.5, bins=bins,density=True,label=label2)
+    plt.legend()
+    plt.title(title)
+    plt.xlabel(x)
+    plt.ylabel(y)
+    plt.grid(axis='y', alpha=0.75)
+    plt.show()
 
 def iterJSONFiles(path : str):
     folder = pathlib.Path(path)
@@ -127,3 +165,7 @@ def iterJSONFiles(path : str):
                 pass
             else:
                 yield data
+
+
+if __name__ == "__main__":
+    makePlots()
