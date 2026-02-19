@@ -47,7 +47,7 @@ class DependencyGraphfromCFunction:
         self.__funcNorm = re.compile(r"[A-Za-z_]\w*\(")
         self.__oneequals = re.compile("[^=]=[^=]")
         self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9][0-9_]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
-        self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\])"
+        self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\]|\{|\})"
         self.__specialAccess = re.compile(r" *(?P<first>[A-Za-z_]\w*) *((\.|->) *[A-Za-z_]\w*)*")
         self.__numberbegin = re.compile(r"^ *[0-9]")
         self.__ternaryAssig = re.compile(r"\?(?P<ifTrue>[^:\n]*):(?P<ifFalse>[^;\n]*)")
@@ -56,7 +56,7 @@ class DependencyGraphfromCFunction:
         self.__dels = re.compile(r"([ \.Pp\+\-])")
         self.__newLine = re.compile(" *\n *")
         self.__Union = re.compile(r"(union.*?)(\} *;\n)",re.DOTALL)
-        self.__funcCall = re.compile(r"[A-Za-z_]\w* *\(")
+        self.__funcCall = re.compile(r"(?P<name>[A-Za-z_]\w*) *\(")
         self.__keyWords = re.compile(r"^ *(auto|char|double|enum|float|int|long|short|signed|struct|union|unsigned|void|break|case|continue|default|do|else|for|goto|if|return|switch|while|const|extern|register|static|typedef|volatile|_Bool|_Complex|_Imaginary|inline|restrict|_Noreturn|_Alignas|_Alignof|_Atomic|_Generic|_Static_assert|_Thread_local) *$")
 
 
@@ -245,7 +245,7 @@ class DependencyGraphfromCFunction:
         self.depGraph = nx.DiGraph()
         
         #for line in self.__func.split("\n"):
-        for instr in [x for x in self.__func.split(";") if x != '']:
+        for instr in [x for x in re.split(r'[;\{\}]',self.__func) if x != '']:
             if any(aop in instr for aop in self.__assignOperators) and (not "return" in instr) and (not "union" in instr) and (self.__oneequals.search(instr)): #No == as Assignmet Operator
                 if assi := self.__variableAssign.search(instr):
                     lhs = assi.group("first")
@@ -300,8 +300,13 @@ class DependencyGraphfromCFunction:
         
         #for line in self.__func.split("\n"):
         for instr in [x for x in self.__func.split(";") if x != ''][1:]:
-            if (mat := self.__funcCall.search(instr)):
-                self.__getVariablesOfString2(instr[mat.start():],"dummy")
+            matList = self.__funcCall.findall(instr)
+            matList2 = [False if self.__keyWords.search(x) else True for x in matList]
+            for i in range(len(matList)):
+                if matList2[i]:
+                    start = instr.find(matList[i])
+                    funclen = len(self.__getBracketGroup(instr[start+len(matList[i]):]))
+                    self.__getVariablesOfString2(instr[start:start+len(matList[i])+funclen],"dummy")
 
         self.depGraph.remove_edges_from(list(nx.selfloop_edges(self.depGraph)))
         return self.depGraph
@@ -315,6 +320,8 @@ class DependencyGraphfromCFunction:
         while (count) < (len(instr) - 1):
             tok = instr[count]
             if self.__types.search(tok):
+                pass
+            elif self.__keyWords.search(tok):
                 pass
             elif (tok in self.__operators) or (tok == ","):
                 pass
@@ -363,11 +370,11 @@ class DependencyGraphfromCFunction:
                     self.__getVariablesOfString(rest,funcName,True)
                     count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "["): #Array (but with Function Variables :) Sorry)
-                funcName = f"{f.group(0)}${self.__counter}"
-                self.__counter += 1
-                self.depGraph.add_node(funcName,name=funcName)
-                self.depGraph.add_node(lhs,name=lhs)
                 if lhs != "dummy":
+                    funcName = f"{f.group(0)}${self.__counter}"
+                    self.__counter += 1
+                    self.depGraph.add_node(funcName,name=funcName)
+                    self.depGraph.add_node(lhs,name=lhs)
                     self.depGraph.add_edge(funcName,lhs,type="array",nr = funcArgCount)
                     funcArgCount += 1
                 brcount = 0
