@@ -8,6 +8,21 @@ from shared import load_jobs
 from pebble import ProcessPool
 from multiprocessing import cpu_count
 
+import re
+
+def _remove_comments(buf: str) -> str:
+    """
+    Removes C-style block (/* */) and line (//) comments from a string.
+    """
+    regs = []
+    regs.append(re.compile(re.compile(r"//.*")))
+    regs.append(re.compile(r"/\*.*?\*/",re.DOTALL))
+
+    for reg in regs:
+        buf = reg.sub("", buf)
+
+    return buf
+    
 def _find_matching_brace(content: str, start_index: int, open_char: str = '{', close_char: str = '}') -> int:
     """
     Finds the index of the closing brace matching the one at start_index.
@@ -102,6 +117,9 @@ def _extract_function_from_buf(buf: str, func_name: str) -> str:
     3. If verified, scan backwards to find the start of the signature (return type).
     4. Extract the body using brace counting.
     """
+    # 0. Remove comments since there content may break the extract function
+    buf = _remove_comments(buf)
+
     # 1. Iterate over all occurrences of the function name
     # We use a regex to find the name ensuring it's a whole word boundary
     name_pattern = re.compile(rf'\b{re.escape(func_name)}\b')

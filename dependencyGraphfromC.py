@@ -17,9 +17,9 @@ class DependencyGraphfromCFunction:
         """As this class will compute a few thousand dependency graphs we precompile all our regexes in advance, so we don't have to do it every single run
         We ingore nested tenary-Assignments"""
 
-        self.__regs = []
-        self.__regs.append(re.compile(r"//.*")) #No Comments
-        self.__regs.append(re.compile(r"/\*.*?\*/",re.DOTALL)) #No Multiline Comments
+        #self.__regs = []
+        #self.__regs.append(re.compile(r"//.*")) #No Comments
+        #self.__regs.append(re.compile(r"/\*.*?\*/",re.DOTALL)) #No Multiline Comments
         #self.__regs.append(re.compile(r'"(\\.|[^"\\])*"')) #No Strings --> Strings are hashed by now and seen as a normal constant
         #self.__regs.append(re.compile(r"'(\\.|[^'\\])*'")) #No Strings 
         self.__stringIdent = re.compile(r"§§STR§§[a-fA-F0-9]{16}§")
@@ -209,8 +209,9 @@ class DependencyGraphfromCFunction:
         """prepares the code for processing the dependency graph e.g. deletes comments, removes unnecessary stylistic nuances etc., so that we don't have to take
             it into consideration in every single regex in the main construction method"""
         
-        for reg in self.__regs:
-            self.__func = reg.sub("",self.__func)
+        # no longer needed since we rm the comments now in the extract phase
+        #for reg in self.__regs:
+        #    self.__func = reg.sub("",self.__func)
         self.__func = self.__doubleNL.sub("\n",self.__func)
         self.__func = self.__tab.sub(r" ",self.__func)
         self.__func = self.__doubleWS.sub(" ",self.__func)
