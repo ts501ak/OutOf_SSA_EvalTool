@@ -1,3 +1,1 @@
-from dependencyGraphfromC import DependencyGraphfromCFunction
 _DependencyGraphObj = None
-_DependencyGraphObj : DependencyGraphfromCFunction
