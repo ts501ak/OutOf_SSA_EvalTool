@@ -42,11 +42,12 @@ class DependencyGraphfromCFunction:
         #self.__delims = ["+","-", "*", "/", "%", "==", "!=", ">", "<", ">=", "<=", "&&", "||", "&", "|", "^", "<<", ">>",")","(",",","[","]"]
         self.__types = re.compile(r"\b(char|int|float|double|signed|short|long|bool|_Bool|void|uint[0-9]*_t|int[0-9]*_t|size_t|double_t|float_t|daddr_t|caddr_t|clock_t|ino_t|cnt_t|dev_t|chan_t|off_t|offset_t|off64_t|soff_t|paddr_t|key_t|time_t|nlink_t|mode_t|uid_t|gid_t|mid_t|pid_t|slab_t|mtyp_t|ssize_t|size_t|uchar_t|ushort_t|uint_t|ulong_t|trace_attr_t|trace_id_t|trace_event_id_t|trace_event_set_t)\b")
         self.__variable = re.compile(r"[A-Za-z_]\w*")
-        self.__variableAssign = re.compile(r"(?P<first>[A-Za-z_]\w*)((\.|->|\[[^\]]+\]\.|\[[^\]]+\]->|\[.*\])*[A-Za-z_]\w*)*(\[[^\]]+\])* *((?<!=)=(?!=)|\+=|-=|\*=|/=|%=|&=|\|=|\^=|<<=|>>=)")
+        self.__variableAssign = re.compile(r"(?P<first>[A-Za-z_]\w*) *((\. *[A-Za-z_]\w* *|-> *[A-Za-z_]\w* *)|\[[^\\n]+\])* *((?<!=)=(?!=)|\+=|-=|\*=|/=|%=|&=|\|=|\^=|<<=|>>=)")
+        #self.__variableAssign = re.compile(r"(?P<first>[A-Za-z_]\w*)((\.|->|\[[^\]]+\]\.|\[[^\]]+\]->|\[.*\])*[A-Za-z_]\w*)*(\[[^\]]+\])* *((?<!=)=(?!=)|\+=|-=|\*=|/=|%=|&=|\|=|\^=|<<=|>>=)")
         self.__funcEnd = re.compile(r"[A-Za-z_]\w*$")
         self.__funcNorm = re.compile(r"[A-Za-z_]\w*\(")
         self.__oneequals = re.compile("[^=]=[^=]")
-        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<Dec3>([1-9][0-9_]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
+        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>([0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>([0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<trueFalse>true|false|True|False|TRUE|FALSE)|(?P<Dec3>([1-9][0-9_]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
         self.__pat = r"((?<!(E|e))\+(?!(>|\+|-))|(?<!(E|e))\-(?!(>|\+|-))|\*|/|%|==|!=|>=|<=|(?<!-)>|<|\&\&|\|\||\&|\||\^|<<|>>|\)|\(|,|\[|\]|\{|\})"
         self.__specialAccess = re.compile(r" *(?P<first>[A-Za-z_]\w*) *((\.|->) *[A-Za-z_]\w*)*")
         self.__numberbegin = re.compile(r"^ *[0-9]")
@@ -201,6 +202,8 @@ class DependencyGraphfromCFunction:
                 return str(float(oct,8))
             elif nu := matO.group("NULLL"):
                 return "0"
+            elif tf:= matO.group("trueFalse"):
+                return f"{tf.upper()}(const)"
             return str(float(matO.group("num")))
         
         raise Exception(f"Couldn't convert {inp} to Dec!")
