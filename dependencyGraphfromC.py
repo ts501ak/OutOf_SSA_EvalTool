@@ -319,15 +319,15 @@ class DependencyGraphfromCFunction:
         instr = re.split(self.__pat,strIn)
         instr = [i for i in instr if (i != '') and (i != None)]
         instr.append(";")
-        count = -1
+        count = 0
         while (count) < (len(instr) - 1):
             tok = instr[count]
             if self.__types.search(tok):
-                pass
+                count += 1
             elif self.__keyWords.search(tok):
-                pass
+                count += 1
             elif (tok in self.__operators) or (tok == ","):
-                pass
+                count += 1
             elif ((const := self.__Constant.search(tok)) != None) and (lhs != "dummy"):
                 #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
@@ -338,9 +338,10 @@ class DependencyGraphfromCFunction:
                 else:
                     self.depGraph.add_edge(const,lhs,type="const",nr = funcArgCount)
                     funcArgCount += 1
+                count += 1
                 
             elif (tok == "(") or (tok == ")"):
-                pass
+                count += 1
             elif (string := self.__stringIdent.search(tok)) and (lhs != "dummy"):
                 self.depGraph.add_node(string.group(0),name=string.group(0))
                 self.depGraph.add_node(lhs,name=lhs)
@@ -349,6 +350,7 @@ class DependencyGraphfromCFunction:
                 else:
                     self.depGraph.add_edge(string.group(0),lhs,type="strConst",nr = funcArgCount)
                     funcArgCount += 1
+                count += 1
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "("):
                 if self.__keyWords.search(tok) == None:
                     funcName = f"{f.group(0)}${self.__counter}"
@@ -369,6 +371,8 @@ class DependencyGraphfromCFunction:
                         if brcount == 0:
                             brcount = i
                             break
+                        if i == (len(instr)-1-1):
+                            brcount = len(instr) -1 -1
                     rest = "".join(instr[count+1:brcount+1])
                     self.__getVariablesOfString(rest,funcName,True)
                     count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
@@ -389,6 +393,8 @@ class DependencyGraphfromCFunction:
                     if brcount == 0:
                         brcount = i
                         break
+                    if i == (len(instr) -1 -1):
+                        brcount = len(instr) -1 -1
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
                 
             elif (v := self.__specialAccess.search(tok)) and (not self.__numberbegin.search(tok)) and (not self.__Constant.search(tok)) and (lhs != "dummy"):
@@ -397,9 +403,9 @@ class DependencyGraphfromCFunction:
                     self.depGraph.add_node(lhs,name=lhs)
                     self.depGraph.add_edge(v.group("first"),lhs,type="var",nr = funcArgCount)
                     funcArgCount += 1
+                count += 1
             else:
-                pass
-            count += 1
+                count += 1
         return
     
     def __getBracketGroup(self,case:str):
@@ -423,13 +429,13 @@ class DependencyGraphfromCFunction:
         instr = re.split(self.__pat,strIn)
         instr = [i for i in instr if (i != '') and (i != None)]
         instr.append(";")
-        count = -1
+        count = 0
         while (count) < (len(instr) - 1):
             tok = instr[count]
             if self.__types.search(tok):
-                pass
+                count += 1
             elif (tok in self.__operators) or (tok == ","):
-                pass
+                count += 1
             elif (const := self.__Constant.search(tok)) != None:
                 #print(strIn,"-->",const.group(0),flush=True)
                 const = self.__constantToDec(const.group("num"))
@@ -440,9 +446,9 @@ class DependencyGraphfromCFunction:
                 else:
                     self.depGraph.add_edge(const,lhs,type="const",nr = funcArgCount)
                     funcArgCount += 1
-                
+                count += 1
             elif (tok == "(") or (tok == ")"):
-                pass
+                count += 1
             elif string := self.__stringIdent.search(tok):
                 self.depGraph.add_node(string.group(0),name=string.group(0))
                 self.depGraph.add_node(lhs,name=lhs)
@@ -451,6 +457,7 @@ class DependencyGraphfromCFunction:
                 else:
                     self.depGraph.add_edge(string.group(0),lhs,type="strConst",nr = funcArgCount)
                     funcArgCount += 1
+                count += 1
             elif (f := self.__funcEnd.search(tok)) and (instr[count+1] == "("):
                 funcName = f"{f.group(0)}${self.__counter}"
                 self.__counter += 1
@@ -470,6 +477,8 @@ class DependencyGraphfromCFunction:
                     if brcount == 0:
                         brcount = i
                         break
+                    if i == (len(instr) -1 -1):
+                        brcount = len(instr) -1 -1
                 rest = "".join(instr[count+1:brcount+1])
                 self.__getVariablesOfString(rest,funcName,True)
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
@@ -494,6 +503,8 @@ class DependencyGraphfromCFunction:
                     if brcount == 0:
                         brcount = i
                         break
+                    if i == (len(instr) -1 -1):
+                        brcount = len(instr) -1 -1
                 rest = "".join(instr[count+1:brcount+1])
                 self.__getVariablesOfString(rest,funcName)
                 count = brcount + 1    #This is why we use while(index < int) instead of for i in range(int)
@@ -506,9 +517,9 @@ class DependencyGraphfromCFunction:
                 else:
                     self.depGraph.add_edge(v.group("first"),lhs,type="var",nr = funcArgCount)
                     funcArgCount += 1
+                count += 1
             else:
-                pass
-            count += 1
+                count += 1
         return
 
 def mergeDicts(d1 :dict, d2 : dict):
