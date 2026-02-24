@@ -333,7 +333,7 @@ class SimilarityMatching:
                 stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
-                if int((end-start)/1000000000) > (timeout):
+                if (((end-start)/1000000000)-0.2) > (timeout):
                     stats.timeOuts += 1
                 else:
                     stats.notimeOut += 1
