@@ -56,7 +56,7 @@ def makePlots():
     if not os.path.exists("./plots/"):
         os.makedirs("./plots/")
 
-    plot_histogramm(gedTimes,"Histrogramm der GED-Zeiten","benötigte GED-Zeit","Häufigkeit",True,"GED-Times.png")
+    plot_histogramm(gedTimes,"Histogramm der GED-Zeiten","benötigte GED-Zeit","Häufigkeit",True,"GED-Times.png")
     plot_histogramm2Sets(SourceZHK,DecompZHK,"Durchschnittliche Größe der ZHK","Größe der ZHK","Häufigkeit","Source-Code","Decompilat",np.mean(avgZHKSize),"ZHKSizeComparison.png")
     plot_bar_chart([GEDTimeout,GEDNoTimeout],["Timeout","no Timeout"],"Timeouts during GED calculation",name="GED-Timeouts.png")
     plot_bar_chart([np.mean(SourceZHK),np.mean(DecompZHK),np.mean(matchedZHK),np.mean(notMatchedZHK)],["avg #ZHK Source-Code","avg #ZHK Decompilat","matched ZHK","non-matched ZHK"],"Zusammenhangskomponenten",name="ZHKMatching.png")
@@ -113,7 +113,7 @@ def plot_bar_chart(values, labels=None, title="Balkendiagramm", colors=None, nam
     plt.savefig(f"plots/{name}")
     plt.close()
 
-def plot_histogramm(data,title,x,y,withavg : bool,name : str = "Histrogramm.png"):
+def plot_histogramm(data,title,x,y,withavg : bool,name : str = "Histogramm.png"):
     """
     Plottet ein Histogramm der Floats in 5er-Bins.
     
