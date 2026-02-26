@@ -15,14 +15,20 @@ class StatisticsClass:
         self.halfmatchedZhk = 0
         self.notmatchedZhk = 0
         self.totalGED = 0
+        self.matchedGED = 0
+        self.unmatchedGED = 0
         self.savePoints = []
         self.totalNodes1 = []
         self.totalNodes2 = []
         self.sizeZhk = []
         self.timeOuts = 0
+        self.matchedTimeOuts = 0
+        self.unmatchedTimeOuts = 0
         self.notimeOut = 0
         self.timeNeeded = []
         self.lastGED = 0
+        self.sizeUnmatchedZHK = []
+        self.sizeMatchedZHK = []
 
     def merge(self, other: 'StatisticsClass'):
         """Merges another statistics object into this one."""
@@ -40,6 +46,12 @@ class StatisticsClass:
         self.timeOuts += other.timeOuts
         self.notimeOut += other.notimeOut
         self.timeNeeded.extend(other.timeNeeded)
+        self.sizeUnmatchedZHK.extend(other.sizeUnmatchedZHK)
+        self.sizeMatchedZHK.extend(other.sizeMatchedZHK)
+        self.unmatchedGED += other.unmatchedGED
+        self.matchedGED += other.matchedGED
+        self.matchedTimeOuts += other.matchedTimeOuts
+        self.unmatchedTimeOuts += other.unmatchedTimeOuts
         return self
 
     def __iadd__(self, other):
@@ -62,7 +74,13 @@ class StatisticsClass:
             "ged_no_timeout": self.notimeOut,
             "ged_timeouts": self.timeOuts,
             "avg_ged_time": round(sum(self.timeNeeded) / total_attempts, 2) if total_attempts > 0 else 0,
-            "ged_times" : self.timeNeeded
+            "ged_times" : self.timeNeeded,
+            "unmatched_ZHK_size": self.sizeUnmatchedZHK,
+            "matched_ZHK_size" : self.sizeMatchedZHK,
+            "matched_ged" : self.matchedGED,
+            "unmatched_ged" : self.unmatchedGED,
+            "matchedTimeouts" : self.matchedTimeOuts,
+            "unmatchedTimeouts" : self.unmatchedTimeOuts
         }
 
     def printResults(self):
@@ -329,50 +347,65 @@ class SimilarityMatching:
                 stats.matchedZhk += 2
                 srcGraph = subgraphDict[zz][0][0].union(gscrNodes)
                 decompGraph = subgraphDict[zz][1][0].union(gdecompNodes)
+                stats.sizeMatchedZHK.append(len(subgraphDict[zz][0][0]))
+                stats.sizeMatchedZHK.append(len(subgraphDict[zz][1][0]))
                 start = time_ns()
-                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
+                ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
+                stats.lastGED += ged
+                stats.matchedGED += ged
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
                 if (((end-start)/1000000000)-0.2) > (timeout):
                     stats.timeOuts += 1
+                    stats.matchedTimeOuts += 1
                 else:
                     stats.notimeOut += 1
-            elif (len(subgraphDict[zz][0])) == (len(subgraphDict[zz][1])):
+            elif ((len(subgraphDict[zz][0])) != 0) and ((len(subgraphDict[zz][1])) != 0):
                 srcSet = set()
                 decompSet = set()
                 for aa in subgraphDict[zz][0]:
                     srcSet.update(aa)
+                    stats.sizeMatchedZHK.append(len(aa))
                     stats.halfmatchedZhk += 1
                 srcSet.update(gscrNodes)
                 for bb in subgraphDict[zz][1]:
                     decompSet.update(bb)
+                    stats.sizeMatchedZHK.append(len(bb))
                     stats.halfmatchedZhk += 1
                 decompSet.update(gdecompNodes)
                 start = time_ns()
-                stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet), undirdecompGraph.subgraph(decompSet), node_match=areSameNode, timeout=timeout)
+                ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet), undirdecompGraph.subgraph(decompSet), node_match=areSameNode, timeout=timeout)
+                stats.lastGED += ged
+                stats.matchedGED += ged
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
-                if int((end-start)/1000000000) > (timeout):
+                if (((end-start)/1000000000)-0.2) > (timeout):
                     stats.timeOuts += 1
+                    stats.matchedTimeOuts += 1
                 else:
                     stats.notimeOut += 1
             else:
                 for bb in subgraphDict[zz][0]:
                     remainsrc.update(bb)
+                    stats.sizeUnmatchedZHK.append(len(bb))
                     stats.notmatchedZhk += 1
                 for cc in subgraphDict[zz][1]:
                     remaindecomp.update(cc)
+                    stats.sizeUnmatchedZHK.append(len(bb))
                     stats.notmatchedZhk += 1
         
         remainsrc.update(gscrNodes)
         remaindecomp.update(gdecompNodes)
 
         start = time_ns()
-        stats.lastGED += nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc), undirdecompGraph.subgraph(remaindecomp), node_match=areSameNode, timeout=timeout)
+        ged = nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc), undirdecompGraph.subgraph(remaindecomp), node_match=areSameNode, timeout=timeout)
+        stats.lastGED += ged
+        stats.unmatchedGED += ged
         end = time_ns()
         stats.timeNeeded.append((end-start)/1000000000)
-        if int((end-start)/1000000000) > (timeout):
+        if (((end-start)/1000000000)-0.2) > (timeout):
             stats.timeOuts += 1
+            stats.unmatchedTimeOuts += 1
         else:
             stats.notimeOut += 1
 

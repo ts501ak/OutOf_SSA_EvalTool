@@ -14,6 +14,8 @@ def makePlots():
     # Data Collections
     total = 0
     totalGED = 0
+    matchedGED = 0
+    unmatchedGED = 0
     SourceZHK = []
     DecompZHK = []
     matchedZHK_list = []
@@ -23,12 +25,16 @@ def makePlots():
     SavePoints = []
     avgZHKSize = []
     GEDTimeout = 0
+    GEDMatchedTimeout = 0
+    GEDUnmatchedTimeout = 0
     GEDNoTimeout = 0
     avgGEDTime = []
     gedTimes = []
     singleGEDs = []
     funcNames = []
-    ratioMatched = [] 
+    ratioMatched = []
+    sizeUnmatchedZHK = []
+    sizeMatchedZHK = []
 
     try:
         for stat, func in iterJSONFiles(args.path):
@@ -65,7 +71,13 @@ def makePlots():
                 GEDNoTimeout += stat["ged_no_timeout"]
                 avgGEDTime.append(stat["avg_ged_time"])
                 gedTimes.extend(stat["ged_times"])
-                
+                sizeUnmatchedZHK.extend(stat["unmatched_ZHK_size"])
+                sizeMatchedZHK.extend(stat["matched_ZHK_size"])
+                matchedGED += stat["matched_ged"]
+                unmatchedGED += stat["unmatched_ged"]
+                GEDUnmatchedTimeout += stat["unmatchedTimeouts"]
+                GEDMatchedTimeout += stat["matchedTimeouts"]
+
             except Exception as e:
                 print(f"[ERROR processing {func}]", e)
                 continue
@@ -108,6 +120,18 @@ def makePlots():
 
     # 8. Matching Success Ratio Histogram
     plot_histogramm(ratioMatched, "Matching Success Ratio Distribution", "Ratio (Matched / Total ZHK)", "Frequency", True, "Matching_Success_Ratio.png", custom_bins=np.linspace(0,1,11))
+
+    # 9. Distribution of Matches an no matches per function
+    plot_histogramm2Sets(matchedZHK_list,notMatchedZHK_list,"Verteilung der Matches und Non-Matches je Funktion","#ZHK","Häufigkeit","# matched ZHK","# non-matched ZHK",None,"DistributionMatchesPerFunction.png",1)
+
+    # 10. Histogramm of the size of matched and unmatched ZHK
+    plot_histogramm2Sets(sizeUnmatchedZHK,sizeMatchedZHK,"Größe von (nicht) gematchten ZHK","Größe","Häufigkeit","Unmatched ZHK","Matched ZHK",None,"VerteilungGröße(Un-)matchedZHK.png",1)
+
+    # 11. Pie Chart of matched vs. unmatched GED
+    create_pie_chart([matchedGED,unmatchedGED],"Composition of total GED","GEDComposition.png",["matched","unmatched"],1)
+
+    # 12. Pie Chart of matched vs. unmatched Tiemouts
+    create_pie_chart([GEDMatchedTimeout,GEDUnmatchedTimeout],"Matched vs. Unmatched Tiemouts","TiemeoutsMatchedVSUnmatched.png",["Matched Timeouts","Unmatched Tiemouts"],1)
 
     print("-" * 30)
     print(f"TOTAL GED: {totalGED:.2f}")
@@ -165,13 +189,13 @@ def plot_histogramm(data, title, x, y, withavg, name="Histogramm.png", custom_bi
     plt.savefig(f"plots/{name}")
     plt.close()
 
-def plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot=None, name="DoubleHistogramm.png"):
+def plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot=None, name="DoubleHistogramm.png",step = 2):
     if (not data1) or (not data2):
         print(f"Keine Daten zum Plotten für {name}!")
         return
 
     max_val = max(max(data1), max(data2))
-    bins = np.arange(0, max_val + 5, 2)
+    bins = np.arange(0, max_val + step, step)
 
     plt.figure(figsize=(8,5))
     plt.hist(data1, alpha=0.5, bins=bins, density=True, label=label1, histtype="stepfilled")
