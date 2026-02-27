@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import gc
+import os
 import sys
 import argparse
+import contextlib
 from pathlib import Path
 from typing import Dict, List 
 from pebble import ProcessPool
@@ -61,8 +63,16 @@ def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
         create_dir(src_func_p_path)
         create_dir(decomp_func_p_path)
 
-        decompiler = Decompiler.from_path(bin_path)
-        for func_name in decompiler._frontend.get_all_function_names(): 
+        functions = []
+        try:
+            with open(os.devnull, "w") as devnull:
+                with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+                    decompiler = Decompiler.from_path(bin_path)
+                    functions = decompiler._frontend.get_all_function_names()
+        except Exception as e:
+            print(f"[-] Error obtaining functions for binary {bin_path}: {e}", file=sys.stderr)
+
+        for func_name in functions:
             res_path            = res_p_path / (func_name + ".json")
             src_func_path       = src_func_p_path / func_name
             decomp_out_path     = decomp_p_path / func_name
