@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import re
 import gc
 import os
 import sys
@@ -38,11 +39,14 @@ except ImportError:
     print("Error importing dewolf")
     sys.exit(1)
 
+SUB_PATTERN = re.compile(r"^sub_[a-f0-9]+$")
+
 def _init_dirs():
     clear_and_create_dir(DECOMP_DIR)
-    clear_and_create_dir(SRC_FUNC_DIR)
+    clear_and_create_dir(SRC_FUNC_DIR) 
     clear_and_create_dir(DECOMP_FUNC_DIR)
     clear_and_create_dir(RES_DIR)
+
 
 def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
     bin_path, ssa_method, graph_edit_timeout = args
@@ -75,6 +79,11 @@ def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
             print(f"[-] Error obtaining functions for binary {bin_path}: {e}", file=sys.stderr)
 
         for func_name in functions:
+
+            # Skip sub_3af8 and so on since we won't match them anyway
+            if SUB_PATTERN.fullmatch(func_name):
+                continue
+
             res_path            = res_p_path / (func_name + ".json")
             src_func_path       = src_func_p_path / func_name
             decomp_out_path     = decomp_p_path / func_name
