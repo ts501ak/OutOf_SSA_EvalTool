@@ -39,7 +39,7 @@ except ImportError:
     print("Error importing dewolf")
     sys.exit(1)
 
-SUB_PATTERN = re.compile(r"^sub_[a-f0-9]+$")
+SUB_PATTERN = re.compile(r"^(?:j_)?sub_[a-f0-9]+$")
 
 def _init_dirs():
     clear_and_create_dir(DECOMP_DIR)
@@ -80,7 +80,7 @@ def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
 
         for func_name in functions:
 
-            # Skip sub_3af8 and so on since we won't match them anyway
+            # Skip sub_3af8 / j_sub_* and so on since we won't match them anyway
             if SUB_PATTERN.fullmatch(func_name):
                 continue
 
