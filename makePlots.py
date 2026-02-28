@@ -1,16 +1,15 @@
+#!/usr/bin/env python3 
+
+from shared import PLOTS_DIR, RES_DIR, clear_and_create_dir
 import matplotlib.pyplot as plt
+from typing import Optional
+from pathlib import Path
 import numpy as np
 import argparse
-import pathlib
 import json
 import os
 
-def makePlots():
-    parsi = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
-    parsi.add_argument("--path","-p",type=str,help="Path to the results folder",default="./res/")
-    parsi.add_argument("--reconstructTiemoutsFromGEDTimes",type=int,help="The number of Timeouts is reconstructed using the given Timeout")
-    args = parsi.parse_args()
-
+def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
     # Data Collections
     total = 0
     totalGED = 0
@@ -37,7 +36,7 @@ def makePlots():
     sizeMatchedZHK = []
 
     try:
-        for stat, func in iterJSONFiles(args.path):
+        for stat, func in iterJSONFiles(RES_DIR):
             try:
                 total += 1
                 funcNames.append(func)
@@ -82,16 +81,16 @@ def makePlots():
                 print(f"[ERROR processing {func}]", e)
                 continue
 
-        if args.reconstructTiemoutsFromGEDTimes:
+        if reconstructTiemoutsFromGEDTimes:
             temp = np.array(gedTimes, np.float32)
-            GEDTimeout = len(temp[temp > (args.reconstructTiemoutsFromGEDTimes - 0.01)])
-            GEDNoTimeout = len(temp[temp <= (args.reconstructTiemoutsFromGEDTimes - 0.01)])
+            GEDTimeout = len(temp[temp > (reconstructTiemoutsFromGEDTimes - 0.01)])
+            GEDNoTimeout = len(temp[temp <= (reconstructTiemoutsFromGEDTimes - 0.01)])
             
     except Exception as e:
         print("[ERROR during file iteration] ", e)
 
-    if not os.path.exists("./plots/"):
-        os.makedirs("./plots/")
+    # create and clear the directory
+    clear_and_create_dir(PLOTS_DIR)
 
     # 1. GED Time Distribution
     plot_histogramm(gedTimes, "Histogramm der GED-Zeiten", "benötigte GED-Zeit (s)", "Häufigkeit", True, "GED-Times.png")
@@ -161,7 +160,7 @@ def plot_bar_chart(values, labels=None, title="Balkendiagramm", colors=None, nam
     plt.title(title)
     plt.grid(axis='y', alpha=0.5)
     plt.tight_layout()
-    plt.savefig(f"plots/{name}")
+    plt.savefig(PLOTS_DIR / name)
     plt.close()
 
 def plot_histogramm(data, title, x, y, withavg, name="Histogramm.png", custom_bins=None):
@@ -186,7 +185,7 @@ def plot_histogramm(data, title, x, y, withavg, name="Histogramm.png", custom_bi
     plt.ylabel(y)
     plt.grid(axis='y', alpha=0.75)
     plt.tight_layout()
-    plt.savefig(f"plots/{name}")
+    plt.savefig(PLOTS_DIR / name)
     plt.close()
 
 def plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot=None, name="DoubleHistogramm.png",step = 2):
@@ -208,7 +207,7 @@ def plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot=No
     plt.ylabel(y)
     plt.grid(axis='y', alpha=0.75)
     plt.tight_layout()
-    plt.savefig(f"plots/{name}")
+    plt.savefig(PLOTS_DIR / name)
     plt.close()
 
 def plot_scatter(x_data, y_data, title, xlabel, ylabel, name):
@@ -229,7 +228,7 @@ def plot_scatter(x_data, y_data, title, xlabel, ylabel, name):
     plt.grid(True, linestyle=':', alpha=0.7)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"plots/{name}")
+    plt.savefig(PLOTS_DIR / name)
     plt.close()
 
 def create_pie_chart(data, title, filename, funcNames=None, threshold=5):
@@ -251,11 +250,10 @@ def create_pie_chart(data, title, filename, funcNames=None, threshold=5):
     plt.title(title)
     plt.axis('equal')
     plt.tight_layout()
-    plt.savefig(f"plots/{filename}")
+    plt.savefig(PLOTS_DIR / filename)
     plt.close()
 
-def iterJSONFiles(path : str):
-    folder = pathlib.Path(path)
+def iterJSONFiles(folder: Path):
     for fp in sorted(folder.glob("**/*.json")):
         with fp.open("r") as f:
             try:
@@ -266,5 +264,15 @@ def iterJSONFiles(path : str):
             except json.JSONDecodeError:
                 print(f"[SKIP] Corrupt JSON: {fp}")
 
+
+def main():
+    parser = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
+    parser.add_argument("-r", "--reconstructTiemoutsFromGEDTimes",
+        type=int,
+        help="The number of Timeouts is reconstructed using the given Timeout"
+    )
+    args = parser.parse_args()
+    makePlots(None)
+
 if __name__ == "__main__":
-    makePlots()
+    main()

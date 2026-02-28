@@ -18,6 +18,7 @@ SRC_FUNC_DIR = DATASET_DIR / "src_func"
 DECOMP_FUNC_DIR = DATASET_DIR / "decomp_func"
 RES_DIR = DATASET_DIR / "res"
 JOBS_FILES = DATASET_DIR / "jobs.json"
+PLOTS_DIR = DATASET_DIR / "plots"
 
 NAMES_TO_IGNORE = { ".gitignore" }
 DECOMP_MEM_LIMIT_GB = 12 
