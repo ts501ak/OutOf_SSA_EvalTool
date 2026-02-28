@@ -4,11 +4,9 @@ import re
 import sys
 import argparse
 from pathlib import Path
-from shared import load_jobs
 from pebble import ProcessPool
+from shared import load_jobs, init_worker, DECOMP_MEM_LIMIT_GB
 from multiprocessing import cpu_count
-
-import re
 
 def _remove_comments(buf: str) -> str:
     """
@@ -213,14 +211,14 @@ def _process_function_pair(args):
         print(f"[-] Error writing to {decomp_func_path}: {e}", file=sys.stderr)
         return
 
-def process_functions(worker_count: int):
+def process_functions(worker_count: int, mem_limit: int):
     jobs = load_jobs()
     if(not jobs):
         print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
         return
 
     print(f"[*] Processing functions for {len(jobs)} using {worker_count} workers...")
-    with ProcessPool(max_workers=worker_count) as pool:
+    with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit,)) as pool:
         future = pool.map(_process_function_pair, jobs)
         try:
             for _ in future.result():
@@ -236,8 +234,13 @@ def main():
         default=cpu_count(),
         help=f"Number of processes (default: {cpu_count()})"
     )
+    parser.add_argument("-m", "--mem-limit",
+        type=int,
+        default=DECOMP_MEM_LIMIT_GB,
+        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB} GB)"
+    )
     args = parser.parse_args()
-    process_functions(args.processes)
+    process_functions(args.processes, args.mem_limit)
 
 if __name__ == "__main__":
     main()

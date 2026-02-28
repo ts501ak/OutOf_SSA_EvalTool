@@ -4,6 +4,7 @@ import os
 import sys
 import gc
 import argparse
+import resource
 import contextlib
 from multiprocessing import cpu_count
 from pebble import ProcessPool
@@ -11,7 +12,9 @@ from pebble import ProcessPool
 from shared import (
     DEWOLF_DIR,
     DECOMP_TIMEOUT_SECONDS,
+    DECOMP_MEM_LIMIT_GB,
     load_jobs,
+    init_worker,
 )
 
 # Add the 'dewolf' directory to sys.path
@@ -57,14 +60,14 @@ def _decompile_func(args):
         gc.collect()
 
 
-def decomp_bins(worker_count: int, decompile_timeout: int):
+def decomp_bins(worker_count: int, decompile_timeout: int, mem_limit: int):
     jobs = load_jobs()
     if(not jobs):
         print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
         return
 
     print(f"[*] Decompiling {len(jobs)} functions using {worker_count} workers...")
-    with ProcessPool(max_workers=worker_count) as pool:
+    with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit,)) as pool:
         future = pool.map(_decompile_func, jobs, timeout=decompile_timeout)
         try:
             for _ in future.result():
@@ -88,8 +91,13 @@ def main():
         default=DECOMP_TIMEOUT_SECONDS,
         help=f"Dewolf decompile timeout (default: {DECOMP_TIMEOUT_SECONDS})"
     )
+    parser.add_argument("-m", "--mem-limit",
+        type=int,
+        default=DECOMP_MEM_LIMIT_GB,
+        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB} GB)"
+    )
     args = parser.parse_args()
-    decomp_bins(args.processes, args.decompile_timeout)
+    decomp_bins(args.processes, args.decompile_timeout, args.mem_limit)
 
 if __name__ == "__main__":
     main()

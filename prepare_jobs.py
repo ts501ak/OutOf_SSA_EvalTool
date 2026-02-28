@@ -20,7 +20,9 @@ from shared import (
     SRC_FUNC_DIR,
     DECOMP_FUNC_DIR,
     NAMES_TO_IGNORE,
+    DECOMP_MEM_LIMIT_GB,
     GRAPH_EDIT_DISTANCE_TIMEOUT,
+    init_worker,
     save_jobs,
     create_dir,
     clear_and_create_dir,
@@ -44,7 +46,7 @@ def _init_dirs():
 
 def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
     bin_path, ssa_method, graph_edit_timeout = args
-
+    
     ret = []
     decompiler = None
     try:
@@ -88,7 +90,7 @@ def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
                     "decomp_func_path": str(decomp_func_path),
                     "func_name": func_name,
                     "ssa_method": ssa_method,
-                    "graph_edit_timeout": graph_edit_timeout
+                    "graph_edit_timeout": graph_edit_timeout,
                 }
             ) 
     except Exception as e:
@@ -99,7 +101,7 @@ def _prepare_jobs_for_binary(args) -> List[Dict[str, str]]:
 
     return ret
 
-def prepare_jobs(worker_count: int, ssa_method: str, graph_edit_timeout: int):
+def prepare_jobs(worker_count: int, ssa_method: str, graph_edit_timeout: int, mem_limit: int):
     jobs = []
 
     _init_dirs()
@@ -111,7 +113,7 @@ def prepare_jobs(worker_count: int, ssa_method: str, graph_edit_timeout: int):
     ]
     print(f"[*] Preparing jobs for {len(args)} binaries using {worker_count} workers...")
     
-    with ProcessPool(max_workers=worker_count) as pool:
+    with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit, )) as pool:
         future = pool.map(_prepare_jobs_for_binary, args)
         
         try:
@@ -132,7 +134,7 @@ def main():
         help=f"Number of processes (default: {cpu_count()})"
     )
     parser.add_argument(
-        "-m", "--ssa-method", 
+        "-s", "--ssa-method", 
         type=str, 
         default="conditional",
         help="SSA translation mode (default: 'conditional')"
@@ -143,9 +145,14 @@ def main():
         default=GRAPH_EDIT_DISTANCE_TIMEOUT,
         help=f"Timeout for the networkx graph edit distance approx. algorithm (default {GRAPH_EDIT_DISTANCE_TIMEOUT}"
     )
+    parser.add_argument("-m", "--mem-limit",
+        type=int,
+        default=DECOMP_MEM_LIMIT_GB,
+        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB} GB)"
+    )
 
     args = parser.parse_args()
-    prepare_jobs(args.processes, args.ssa_method, args.graph_edit_timeout)
+    prepare_jobs(args.processes, args.ssa_method, args.graph_edit_timeout, args.mem_limit)
 
 if __name__ == "__main__":
     main()

@@ -2,15 +2,15 @@
 
 import sys
 import json
+import processVariable
 import argparse
 from pathlib import Path
 from pebble import ProcessPool
-from concurrent.futures import TimeoutError # Added for timeout handling
 from multiprocessing import cpu_count
+from concurrent.futures import TimeoutError
 from sim_matching import SimilarityMatching
-from shared import load_jobs, COMP_RES_TIMEOUT
 from dependencyGraphfromC import DependencyGraphfromCFunction
-import processVariable
+from shared import load_jobs, init_worker, COMP_RES_TIMEOUT, DECOMP_MEM_LIMIT_GB
 
 def _comp_res_for_job(args):
     res_path = args.get("res_path")
@@ -35,7 +35,11 @@ def _comp_res_for_job(args):
     except Exception as e:
         print(f"[-] Failure processing {res_path}: {e}", file=sys.stderr)
 
-def comp_res(worker_count: int, timeout: int):
+def _init_worker(limit_gb: int):
+    processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
+    init_worker(limit_gb)
+
+def comp_res(worker_count: int, timeout: int, mem_limit: int):
     jobs = load_jobs()
     if not jobs:
         print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
@@ -43,7 +47,7 @@ def comp_res(worker_count: int, timeout: int):
 
     print(f"[*] Computing results for {len(jobs)} functions using {worker_count} workers...")
     
-    with ProcessPool(max_workers=worker_count, initializer=init_worker) as pool:
+    with ProcessPool(max_workers=worker_count, initializer=_init_worker, initargs=(mem_limit,)) as pool:
         future = pool.map(_comp_res_for_job, jobs, timeout=timeout)
         iterator = future.result()
         
@@ -57,8 +61,6 @@ def comp_res(worker_count: int, timeout: int):
             except Exception as e:
                 print(f"[-] Error during job execution: {e}", file=sys.stderr)
 
-def init_worker():
-    processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
 
 def main():
     parser = argparse.ArgumentParser(description="Parallel Similarity Matching Stats")
@@ -74,8 +76,13 @@ def main():
         default=COMP_RES_TIMEOUT,
         help="Timeout of result computation of a function"
     )
+    parser.add_argument("-m", "--mem-limit",
+        type=int,
+        default=DECOMP_MEM_LIMIT_GB,
+        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB} GB)"
+    )
     args = parser.parse_args()
-    comp_res(args.processes, args.timeout)
+    comp_res(args.processes, args.timeout, args.mem_limit)
 
 if __name__ == "__main__":
     main()
