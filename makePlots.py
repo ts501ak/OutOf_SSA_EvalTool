@@ -9,6 +9,11 @@ import argparse
 import json
 import os
 
+def log_and_print(message, log_file_path: Path):
+    print(message)
+    with open(log_file_path, "a", encoding="utf-8") as f:
+        f.write(str(message) + "\n")
+
 def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
     # Data Collections
     total = 0
@@ -34,6 +39,10 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
     ratioMatched = []
     sizeUnmatchedZHK = []
     sizeMatchedZHK = []
+
+    # Prepare Directory first so we can write the log there 
+    clear_and_create_dir(PLOTS_DIR)
+    log_path = PLOTS_DIR / "output.log"
 
     try:
         for stat, func in iterJSONFiles(RES_DIR):
@@ -78,7 +87,7 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
                 GEDMatchedTimeout += stat["matchedTimeouts"]
 
             except Exception as e:
-                print(f"[ERROR processing {func}]", e)
+                log_and_print(f"[ERROR processing {func}] {e}", log_path)
                 continue
 
         if reconstructTiemoutsFromGEDTimes:
@@ -87,10 +96,8 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
             GEDNoTimeout = len(temp[temp <= (reconstructTiemoutsFromGEDTimes - 0.01)])
             
     except Exception as e:
-        print("[ERROR during file iteration] ", e)
+        log_and_print(f"[ERROR during file iteration] {e}", log_path)
 
-    # create and clear the directory
-    clear_and_create_dir(PLOTS_DIR)
 
     # 1. GED Time Distribution
     plot_histogramm(gedTimes, "Histogramm der GED-Zeiten", "benötigte GED-Zeit (s)", "Häufigkeit", True, "GED-Times.png")
@@ -132,11 +139,11 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
     # 12. Pie Chart of matched vs. unmatched Tiemouts
     create_pie_chart([GEDMatchedTimeout,GEDUnmatchedTimeout],"Matched vs. Unmatched Tiemouts","TiemeoutsMatchedVSUnmatched.png",["Matched Timeouts","Unmatched Tiemouts"],1)
 
-    print("-" * 30)
-    print(f"TOTAL GED: {totalGED:.2f}")
-    print(f"TOTAL FUNCTIONS EVALUATED: {total}")
-    print(f"GLOBAL MATCHING RATE: {(matchedZHK_total / (matchedZHK_total + notMatchedZHK_total) * 100):.2f}%" if (matchedZHK_total + notMatchedZHK_total) > 0 else "N/A")
-    print("-" * 30)
+    log_and_print("-" * 30, log_path)
+    log_and_print(f"TOTAL GED: {totalGED:.2f}", log_path)
+    log_and_print(f"TOTAL FUNCTIONS EVALUATED: {total}", log_path)
+    log_and_print(f"GLOBAL MATCHING RATE: {(matchedZHK_total / (matchedZHK_total + notMatchedZHK_total) * 100):.2f}%" if (matchedZHK_total + notMatchedZHK_total) > 0 else "N/A", log_path)
+    log_and_print("-" * 30, log_path)
 
 
 def plot_bar_chart(values, labels=None, title="Balkendiagramm", colors=None, name="BarChart.png"):
