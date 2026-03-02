@@ -194,12 +194,12 @@ class DependencyGraphfromCFunction:
                 return str(float.fromhex(hex))
             elif bin := matO.group("Bin"):
                 bin = bin[2:]
-                return str(float(bin,2))
+                return str(float(int(bin,base=2)))
             elif oct := matO.group("Oct"):
                 if oct == "0":
                     return "0"
                 oct = oct[1:]
-                return str(float(oct,8))
+                return str(float(int(oct,base=8)))
             elif nu := matO.group("NULLL"):
                 return "0"
             elif tf:= matO.group("trueFalse"):
@@ -532,7 +532,7 @@ def mergeDicts(d1 :dict, d2 : dict):
             values.append(d2[k])
         values = list(set(values))
         if len(values) > 1:
-            raise Exception("Found 2 contradicting certain matches.")
+            print("Found 2 contradicting certain matches! We're taking the first one!")
         res[k] = values[0]
     return res   
 

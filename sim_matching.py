@@ -391,7 +391,7 @@ class SimilarityMatching:
                     stats.notmatchedZhk += 1
                 for cc in subgraphDict[zz][1]:
                     remaindecomp.update(cc)
-                    stats.sizeUnmatchedZHK.append(len(bb))
+                    stats.sizeUnmatchedZHK.append(len(cc))
                     stats.notmatchedZhk += 1
         
         remainsrc.update(gscrNodes)
