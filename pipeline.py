@@ -10,7 +10,8 @@ from multiprocessing import cpu_count
 from shared import (
     DECOMP_TIMEOUT_SECONDS,
     GRAPH_EDIT_DISTANCE_TIMEOUT,
-    DECOMP_MEM_LIMIT_GB
+    DECOMP_MEM_LIMIT_GB,
+    COMP_RES_TIMEOUT
 ) 
 
 sep = '-' * 100
@@ -44,10 +45,16 @@ def main():
         help=f"Dewolf decompile timeout (default: {DECOMP_TIMEOUT_SECONDS})"
     )
     parser.add_argument(
+        "-c", "--compres-timeout", 
+        type=int, 
+        default=COMP_RES_TIMEOUT,
+        help=f"Timeout for the compres worker (default: {COMP_RES_TIMEOUT})"
+    )
+    parser.add_argument(
         "-g", "--graph-edit-timeout", 
         type=int,
         default=GRAPH_EDIT_DISTANCE_TIMEOUT,
-        help=f"Timeout for the networkx graph edit distance approx. algorithm (default {GRAPH_EDIT_DISTANCE_TIMEOUT}"
+        help=f"Timeout for the networkx graph edit distance approx. algorithm (default {GRAPH_EDIT_DISTANCE_TIMEOUT})"
     )
     parser.add_argument("-m", "--mem-limit",
         type=int,
@@ -55,7 +62,7 @@ def main():
         help=f"Memory limit for worker processes (default: {DECOMP_MEM_LIMIT_GB})"
     )
     args=parser.parse_args()
-
+    
     start_stage("Preparing jobs")
     prepare_jobs(args.processes, args.ssa_method, args.graph_edit_timeout, args.mem_limit)
     end_stage()
@@ -66,7 +73,7 @@ def main():
     process_functions(args.processes, args.mem_limit)
     end_stage()
     start_stage("Processing functions")
-    comp_res(args.processes, args.decompile_timeout, args.mem_limit)
+    comp_res(args.processes, args.compres_timeout, args.mem_limit)
     end_stage()
 
 
