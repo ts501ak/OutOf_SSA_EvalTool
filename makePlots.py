@@ -14,7 +14,7 @@ def log_and_print(message, log_file_path: Path):
     with open(log_file_path, "a", encoding="utf-8") as f:
         f.write(str(message) + "\n")
 
-def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
+def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None,pathOverride : str = None):
     # Data Collections
     total = 0
     totalGED = 0
@@ -45,7 +45,7 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
     log_path = PLOTS_DIR / "output.log"
 
     try:
-        for stat, func in iterJSONFiles(RES_DIR):
+        for stat, func in iterJSONFiles(RES_DIR if not pathOverride else Path(pathOverride)):
             try:
                 total += 1
                 funcNames.append(func)
@@ -92,8 +92,8 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None):
 
         if reconstructTiemoutsFromGEDTimes:
             temp = np.array(gedTimes, np.float32)
-            GEDTimeout = len(temp[temp > (reconstructTiemoutsFromGEDTimes - 0.01)])
-            GEDNoTimeout = len(temp[temp <= (reconstructTiemoutsFromGEDTimes - 0.01)])
+            GEDTimeout = len(temp[temp > (reconstructTiemoutsFromGEDTimes - 1)])
+            GEDNoTimeout = len(temp[temp <= (reconstructTiemoutsFromGEDTimes - 1)])
             
     except Exception as e:
         log_and_print(f"[ERROR during file iteration] {e}", log_path)
@@ -204,8 +204,8 @@ def plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot=No
     bins = np.arange(0, max_val + step, step)
 
     plt.figure(figsize=(8,5))
-    plt.hist(data1, alpha=0.5, bins=bins, density=True, label=label1, histtype="stepfilled")
-    plt.hist(data2, alpha=0.5, bins=bins, density=True, label=label2, histtype="stepfilled")
+    plt.hist(data1, alpha=0.5, bins=bins, density=True, label=label1, histtype="stepfilled",align="left")
+    plt.hist(data2, alpha=0.5, bins=bins, density=True, label=label2, histtype="stepfilled",align="mid")
     if avgToplot:
         plt.axvline(avgToplot, color='red', linestyle='--', linewidth=2, label=f'Durchschnitt: {avgToplot:.2f}')
     plt.legend()
@@ -275,11 +275,17 @@ def iterJSONFiles(folder: Path):
 def main():
     parser = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
     parser.add_argument("-r", "--reconstructTiemoutsFromGEDTimes",
+        dest="reconstructTiemoutsFromGEDTimes",
         type=int,
         help="The number of Timeouts is reconstructed using the given Timeout"
     )
+    parser.add_argument("-p","--pathOverride",
+        dest="PathOverride",
+        type=str,
+        help="OVERRIDES the standard Res-Path"
+    )
     args = parser.parse_args()
-    makePlots(None)
+    makePlots(args.reconstructTiemoutsFromGEDTimes,args.PathOverride)
 
 if __name__ == "__main__":
     main()

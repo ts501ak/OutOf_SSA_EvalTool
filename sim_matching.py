@@ -355,7 +355,7 @@ class SimilarityMatching:
                 stats.matchedGED += ged
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
-                if (((end-start)/1000000000)-0.2) > (timeout):
+                if (((end-start)/1000000000) + 1) > (timeout):
                     stats.timeOuts += 1
                     stats.matchedTimeOuts += 1
                 else:
@@ -379,7 +379,7 @@ class SimilarityMatching:
                 stats.matchedGED += ged
                 end = time_ns()
                 stats.timeNeeded.append((end-start)/1000000000)
-                if (((end-start)/1000000000)-0.2) > (timeout):
+                if (((end-start)/1000000000) + 1) > (timeout):
                     stats.timeOuts += 1
                     stats.matchedTimeOuts += 1
                 else:
@@ -403,7 +403,7 @@ class SimilarityMatching:
         stats.unmatchedGED += ged
         end = time_ns()
         stats.timeNeeded.append((end-start)/1000000000)
-        if (((end-start)/1000000000)-0.2) > (timeout):
+        if (((end-start)/1000000000) + 1) > (timeout):
             stats.timeOuts += 1
             stats.unmatchedTimeOuts += 1
         else:
