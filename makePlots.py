@@ -14,7 +14,7 @@ def log_and_print(message, log_file_path: Path):
     with open(log_file_path, "a", encoding="utf-8") as f:
         f.write(str(message) + "\n")
 
-def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None,pathOverride : str = None):
+def makePlots(reconstructtimeoutsFromGEDTimes: Optional[int] = None,pathOverride : str = None):
     # Data Collections
     total = 0
     totalGED = 0
@@ -90,10 +90,10 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None,pathOverride
                 log_and_print(f"[ERROR processing {func}] {e}", log_path)
                 continue
 
-        if reconstructTiemoutsFromGEDTimes:
+        if reconstructtimeoutsFromGEDTimes:
             temp = np.array(gedTimes, np.float32)
-            GEDTimeout = len(temp[temp > (reconstructTiemoutsFromGEDTimes - 1)])
-            GEDNoTimeout = len(temp[temp <= (reconstructTiemoutsFromGEDTimes - 1)])
+            GEDTimeout = len(temp[temp > (reconstructtimeoutsFromGEDTimes - 1)])
+            GEDNoTimeout = len(temp[temp <= (reconstructtimeoutsFromGEDTimes - 1)])
             
     except Exception as e:
         log_and_print(f"[ERROR during file iteration] {e}", log_path)
@@ -136,8 +136,8 @@ def makePlots(reconstructTiemoutsFromGEDTimes: Optional[int] = None,pathOverride
     # 11. Pie Chart of matched vs. unmatched GED
     create_pie_chart([matchedGED,unmatchedGED],"Composition of total GED","GEDComposition.png",["matched","unmatched"],1)
 
-    # 12. Pie Chart of matched vs. unmatched Tiemouts
-    create_pie_chart([GEDMatchedTimeout,GEDUnmatchedTimeout],"Matched vs. Unmatched Tiemouts","TiemeoutsMatchedVSUnmatched.png",["Matched Timeouts","Unmatched Tiemouts"],1)
+    # 12. Pie Chart of matched vs. unmatched Timeouts
+    create_pie_chart([GEDMatchedTimeout,GEDUnmatchedTimeout],"Matched vs. Unmatched Timeouts","TimeoutsMatchedVSUnmatched.png",["Matched Timeouts","Unmatched Timeouts"],1)
 
     log_and_print("-" * 30, log_path)
     log_and_print(f"TOTAL GED: {totalGED:.2f}", log_path)
@@ -274,8 +274,8 @@ def iterJSONFiles(folder: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
-    parser.add_argument("-r", "--reconstructTiemoutsFromGEDTimes",
-        dest="reconstructTiemoutsFromGEDTimes",
+    parser.add_argument("-r", "--reconstructTimeoutsFromGEDTimes",
+        dest="reconstructTimeoutsFromGEDTimes",
         type=int,
         help="The number of Timeouts is reconstructed using the given Timeout"
     )
@@ -285,7 +285,7 @@ def main():
         help="OVERRIDES the standard Res-Path"
     )
     args = parser.parse_args()
-    makePlots(args.reconstructTiemoutsFromGEDTimes,args.PathOverride)
+    makePlots(args.reconstructTimeoutsFromGEDTimes,args.PathOverride)
 
 if __name__ == "__main__":
     main()
