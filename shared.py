@@ -14,7 +14,7 @@ SRC_DIR = DATASET_DIR / "src"
 BINS_DIR = DATASET_DIR / "bins"
 JOBS_FILE = DATASET_DIR / "jobs.json"
 
-SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008"]
+SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008", "simple"]
 
 NAMES_TO_IGNORE = { ".gitignore" }
 MEM_LIMIT_GB = 8 
