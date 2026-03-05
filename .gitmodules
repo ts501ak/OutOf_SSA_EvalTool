@@ -1,3 +1,4 @@
 [submodule "dewolf"]
-	path = dewolf
+    path = dewolf
 	url = git@github.com:ts501ak/dewolf.git
+    branch = ssa-eval-merge
