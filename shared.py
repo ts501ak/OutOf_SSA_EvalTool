@@ -19,7 +19,7 @@ SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008"]
 NAMES_TO_IGNORE = { ".gitignore" }
 MEM_LIMIT_GB = 8 
 DECOMP_MEM_LIMIT_GB = 12 
-GRAPH_EDIT_DISTANCE_TIMEOUT = 10 
+GRAPH_EDIT_DISTANCE_TIMEOUT = 7 * 60 + 30 
 DECOMP_TIMEOUT_SECONDS = 10 * 60 
 
 def init_worker(limit_gb: int):
