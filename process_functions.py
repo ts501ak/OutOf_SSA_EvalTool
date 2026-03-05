@@ -5,8 +5,19 @@ import sys
 import argparse
 from pathlib import Path
 from pebble import ProcessPool
-from shared import load_jobs, init_worker, DECOMP_MEM_LIMIT_GB
 from multiprocessing import cpu_count
+
+from shared import (
+    SSA_ALGOS,
+    MEM_LIMIT_GB,
+    load_jobs,
+    log_and_print,
+    init_worker,
+    get_src_file,
+    get_decomp_file,
+    get_src_func_file,
+    get_decomp_func_file,
+)
 
 def _remove_comments(buf: str) -> str:
     """
@@ -181,53 +192,70 @@ def _extract_function_from_buf(buf: str, func_name: str) -> str:
     raise Exception(f"Function {func_name} not found!")
 
 def _process_function_pair(args):
-    func_name = args.get("func_name")
-    src_path = args.get("src_path")
-    decomp_out_path = args.get("decomp_out_path")
-    src_func_path = args.get("src_func_path")
-    decomp_func_path = args.get("decomp_func_path")
+    bin = args.get("bin")
+    func = args.get("func")
+    fresh = args.get("fresh")
+    ssa_algo = args.get("ssa_algo")
+
+    io_pairs = [
+        (get_src_file(bin), get_src_func_file(ssa_algo, bin, func)),
+        (get_decomp_file(ssa_algo, bin, func), get_decomp_func_file(ssa_algo, bin, func))
+    ]
+
+    extracted_content = {}
+    for src_path, dest_path in io_pairs:
+        if not src_path.exists():
+            return
+
+        if dest_path.exists() and not fresh:
+            continue
+
+        try:
+            raw_code = src_path.read_text()
+            code = _extract_function_from_buf(raw_code, func)
+
+            if code == "":
+                raise Exception("Extracted empty function")
+
+            extracted_content[dest_path] = code
+        except Exception as e:
+            #log_and_print(f"[-] Error extracting {func} from {src_path}: {e}", print_file=sys.stderr)
+            return
 
     try:
-        src_input = Path(src_path).read_text()
-        src_match = _extract_function_from_buf(src_input, func_name)
+        for path, content in extracted_content.items():
+            path.write_text(content)
     except Exception as e:
-        print(f"[-] Error extracting {func_name} from {src_path}: {e}", file=sys.stderr)
-        src_match = ""
+        log_and_print(f"[-] Error writing output: {e}", print_file=sys.stderr)
+        for path in extracted_content.keys():
+            path.unlink(missing_ok=True)
 
-    try:
-        decomp_input = Path(decomp_out_path).read_text()
-        decomp_match = _extract_function_from_buf(decomp_input, func_name)
-    except Exception as e:
-        print(f"[-] Error extracting {func_name} from {decomp_out_path}: {e}", file=sys.stderr)
-        decomp_match = ""
-    try:
-        Path(src_func_path).write_text(src_match)
-    except Exception as e:
-        print(f"[-] Error writing to {src_func_path}: {e}", file=sys.stderr)
-        return
-    try:
-        Path(decomp_func_path).write_text(decomp_match)
-    except Exception as e:
-        print(f"[-] Error writing to {decomp_func_path}: {e}", file=sys.stderr)
-        return
-
-def process_functions(worker_count: int, mem_limit: int):
+def process_functions(worker_count: int, mem_limit: int, fresh: bool = True):
     jobs = load_jobs()
     if(not jobs):
-        print("[-] jobs.json not found! Try running prepare_jobs.py", file=sys.stderr)
+        log_and_print("[-] jobs.json not found! Try running prepare_jobs.py", print_file=sys.stderr)
         return
 
-    print(f"[*] Processing functions for {len(jobs)} using {worker_count} workers...")
-    with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit,)) as pool:
-        future = pool.map(_process_function_pair, jobs)
-        try:
-            for _ in future.result():
-                pass
-        except Exception as e:
-            print(f"[-] Error during function extraction pool execution: {e}", file=sys.stderr)
+    for ssa_algo in SSA_ALGOS:
+        jobs = [{**d, "ssa_algo": ssa_algo, "fresh": fresh} for d in jobs]
+        log_and_print(f"[*] Processing functions for ssa algorithm {ssa_algo} ausing {worker_count} workers...")
+        with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit,)) as pool:
+            future = pool.map(_process_function_pair, jobs)
+            try:
+                for _ in future.result():
+                    pass
+            except Exception as e:
+                log_and_print(f"[-] Error during function extraction pool execution: {e}", print_file=sys.stderr)
+
+        log_and_print("")
     
 def main():
     parser = argparse.ArgumentParser(description="Parallel Binary Decompiler")
+    parser.add_argument(
+        "-f", "--fresh",
+        action=argparse.BooleanOptionalAction,
+        help=f"Overwrite exisitng files (default: {False})"
+    )
     parser.add_argument(
         "-p", "--processes", 
         type=int, 
@@ -236,11 +264,11 @@ def main():
     )
     parser.add_argument("-m", "--mem-limit",
         type=int,
-        default=DECOMP_MEM_LIMIT_GB,
-        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB} GB)"
+        default=MEM_LIMIT_GB,
+        help=f"Memory limit for worker processes in GB (default: {MEM_LIMIT_GB} GB)"
     )
     args = parser.parse_args()
-    process_functions(args.processes, args.mem_limit)
+    process_functions(args.processes, args.mem_limit, args.fresh)
 
 if __name__ == "__main__":
     main()
