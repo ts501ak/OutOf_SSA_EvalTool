@@ -16,7 +16,7 @@ from shared import (
     clear_and_create_dir
 )
 
-def _plot_bar_chart(values, labels, title, out_path: Path):
+def plot_bar_chart(values, labels, title, out_path: Path):
     num_bars = len(values)
     colors = plt.cm.tab20.colors
     if num_bars > len(colors):
@@ -37,7 +37,7 @@ def _plot_bar_chart(values, labels, title, out_path: Path):
     plt.savefig(out_path)
     plt.close()
 
-def _plot_histogramm(data, title, x, y, withavg, out_path: Path, custom_bins=None):
+def plot_histogramm(data, title, x, y, withavg, out_path: Path, custom_bins=None):
     if not data:
         print(f"Keine Daten zum Plotten für {out_path.name}!")
         return
@@ -62,7 +62,7 @@ def _plot_histogramm(data, title, x, y, withavg, out_path: Path, custom_bins=Non
     plt.savefig(out_path)
     plt.close()
 
-def _plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot, out_path: Path, step=2, log_y=False):
+def plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot, out_path: Path, step=2, log_y=False):
     if (not data1) or (not data2):
         print(f"Keine Daten zum Plotten für {out_path.name}!")
         return
@@ -71,14 +71,11 @@ def _plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot, 
     bins = np.arange(0, max_val + step, step)
 
     plt.figure(figsize=(8,5))
-    plt.hist(data1, alpha=0.5, bins=bins, density=True, label=label1, histtype="stepfilled", align="left")
-    plt.hist(data2, alpha=0.5, bins=bins, density=True, label=label2, histtype="stepfilled", align="mid")
+    plt.hist(data1, alpha=0.5, bins=bins, density=True, label=label1, histtype="stepfilled", align="left",log=log_y)
+    plt.hist(data2, alpha=0.5, bins=bins, density=True, label=label2, histtype="stepfilled", align="mid",log=log_y)
     
     if avgToplot:
         plt.axvline(avgToplot, color='red', linestyle='--', linewidth=2, label=f'Durchschnitt: {avgToplot:.2f}')
-    
-    if log_y:
-        plt.yscale('log')
         
     plt.legend()
     plt.title(title)
@@ -89,7 +86,7 @@ def _plot_histogramm2Sets(data1, data2, title, x, y, label1, label2, avgToplot, 
     plt.savefig(out_path)
     plt.close()
 
-def _plot_scatter(x_data, y_data, title, xlabel, ylabel, out_path: Path):
+def plot_scatter(x_data, y_data, title, xlabel, ylabel, out_path: Path):
     plt.figure(figsize=(10, 6))
     plt.scatter(x_data, y_data, alpha=0.6, edgecolors='k')
     
@@ -110,7 +107,7 @@ def _plot_scatter(x_data, y_data, title, xlabel, ylabel, out_path: Path):
     plt.savefig(out_path)
     plt.close()
 
-def _plot_pie_chart(data, title, out_path: Path, funcNames, threshold):
+def plot_pie_chart(data, title, out_path: Path, funcNames, threshold):
     total = sum(data)
     if total == 0: return
     
@@ -143,7 +140,7 @@ def iterJSONFiles(folder: Path):
             except json.JSONDecodeError:
                 print(f"[SKIP] Corrupt JSON: {fp}")
 
-def _make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None):
+def make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None,pathOverride = None):
     total = 0
     totalGED = 0
     matchedGED = 0
@@ -168,8 +165,13 @@ def _make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None):
     sizeUnmatchedZHK = []
     sizeMatchedZHK = []
 
-    res_dir = get_res_dir(ssa_algo)
-    plot_dir = get_plot_dir(ssa_algo)
+    if (ssa_algo == None) and (pathOverride != None):
+        res_dir = Path(f"{pathOverride}/res")
+        plot_dir = Path(f"dataset/plots")
+    else:
+        res_dir = get_res_dir(ssa_algo)
+        plot_dir = get_plot_dir(ssa_algo)
+
     stat_path = plot_dir / "stats.txt"
 
     clear_and_create_dir(plot_dir)
@@ -225,43 +227,43 @@ def _make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None):
         log_and_print(f"[-]ERROR during file iteration] {e}", stat_path, print_file=sys.stderr)
 
     # 1. GED Time Distribution
-    _plot_histogramm(gedTimes, "Histogramm der GED-Zeiten", "benötigte GED-Zeit (s)", "Häufigkeit", True, plot_dir / "GED-Times.png")
+    plot_histogramm(gedTimes, "Histogramm der GED-Zeiten", "benötigte GED-Zeit (s)", "Häufigkeit", True, plot_dir / "GED-Times.png")
     
     # 2. GED Population (The distribution of total_ged values)
-    _plot_histogramm(singleGEDs, "Histogramm der GED-Werte (Population)", "GED Wert", "Häufigkeit", True, plot_dir / "GED-Population.png")
+    plot_histogramm(singleGEDs, "Histogramm der GED-Werte (Population)", "GED Wert", "Häufigkeit", True, plot_dir / "GED-Population.png")
 
     # 3. ZHK Size Comparison
-    _plot_histogramm2Sets(SourceZHK, DecompZHK, "Durchschnittliche Größe der ZHK", "Größe der ZHK", "Häufigkeit", "Source-Code", "Decompilat", np.mean(avgZHKSize), plot_dir / "ZHKSizeComparison.png")
+    plot_histogramm2Sets(SourceZHK, DecompZHK, "Durchschnittliche Größe der ZHK", "Größe der ZHK", "Häufigkeit", "Source-Code", "Decompilat", np.mean(avgZHKSize), plot_dir / "ZHKSizeComparison.png")
     
     # 4. GED Timeouts Bar Chart
-    _plot_bar_chart([GEDTimeout, GEDNoTimeout], ["Timeout", "no Timeout"], "Timeouts during GED calculation", plot_dir / "GED-Timeouts.png")
+    plot_bar_chart([GEDTimeout, GEDNoTimeout], ["Timeout", "no Timeout"], "Timeouts during GED calculation", plot_dir / "GED-Timeouts.png")
     
     # 5. Matching Overview
-    _plot_bar_chart([np.mean(SourceZHK), np.mean(DecompZHK), np.mean(matchedZHK_list), np.mean(notMatchedZHK_list)], 
+    plot_bar_chart([np.mean(SourceZHK), np.mean(DecompZHK), np.mean(matchedZHK_list), np.mean(notMatchedZHK_list)], 
                    ["avg #ZHK Source", "avg #ZHK Decomp", "avg matched", "avg non-matched"], 
                    "Zusammenhangskomponenten", plot_dir / "ZHKMatching.png")
     
     # 6. GED Pie Chart (Composition)
-    _plot_pie_chart(singleGEDs, "Anteile der Funktionen an der Gesamt-GED", plot_dir / "GED-Composition.png", funcNames, 4)
+    plot_pie_chart(singleGEDs, "Anteile der Funktionen an der Gesamt-GED", plot_dir / "GED-Composition.png", funcNames, 4)
 
     # 7. Correlation Plot: GED vs. Calculation Time
     if len(singleGEDs) == len(avgGEDTime):
-        _plot_scatter(singleGEDs, avgGEDTime, "Correlation: GED Value vs. Time", "GED Value", "Avg Time (s)", plot_dir / "GED_vs_Time_Scatter.png")
+        plot_scatter(singleGEDs, avgGEDTime, "Correlation: GED Value vs. Time", "GED Value", "Avg Time (s)", plot_dir / "GED_vs_Time_Scatter.png")
 
     # 8. Matching Success Ratio Histogram
-    _plot_histogramm(ratioMatched, "Matching Success Ratio Distribution", "Ratio (Matched / Total ZHK)", "Frequency", True, plot_dir / "Matching_Success_Ratio.png", custom_bins=np.linspace(0,1,11))
+    plot_histogramm(ratioMatched, "Matching Success Ratio Distribution", "Ratio (Matched / Total ZHK)", "Frequency", True, plot_dir / "Matching_Success_Ratio.png", custom_bins=np.linspace(0,1,11))
 
     # 9. Distribution of Matches an no matches per function
-    _plot_histogramm2Sets(matchedZHK_list, notMatchedZHK_list, "Verteilung der Matches und Non-Matches je Funktion", "#ZHK", "Häufigkeit", "# matched ZHK", "# non-matched ZHK", None, plot_dir / "DistributionMatchesPerFunction.png", 1)
+    plot_histogramm2Sets(matchedZHK_list, notMatchedZHK_list, "Verteilung der Matches und Non-Matches je Funktion", "#ZHK", "Häufigkeit", "# matched ZHK", "# non-matched ZHK", None, plot_dir / "DistributionMatchesPerFunction.png", 1)
 
     # 10. Histogramm of the size of matched and unmatched ZHK
-    _plot_histogramm2Sets(sizeUnmatchedZHK, sizeMatchedZHK, "Größe von (nicht) gematchten ZHK", "Größe", "Häufigkeit", "Unmatched ZHK", "Matched ZHK", None, plot_dir / "VerteilungGröße(Un-)matchedZHK.png", 1, log_y=True)
+    plot_histogramm2Sets(sizeUnmatchedZHK, sizeMatchedZHK, "Größe von (nicht) gematchten ZHK", "Größe", "Häufigkeit", "Unmatched ZHK", "Matched ZHK", None, plot_dir / "VerteilungGröße(Un-)matchedZHK.png", 1, log_y=True)
 
     # 11. Pie Chart of matched vs. unmatched GED
-    _plot_pie_chart([matchedGED, unmatchedGED], "Composition of total GED", plot_dir / "GEDComposition.png", ["matched", "unmatched"], 1)
+    plot_pie_chart([matchedGED, unmatchedGED], "Composition of total GED", plot_dir / "GEDComposition.png", ["matched", "unmatched"], 1)
 
     # 12. Pie Chart of matched vs. unmatched Timeouts
-    _plot_pie_chart([GEDMatchedTimeout, GEDUnmatchedTimeout], "Matched vs. Unmatched Timeouts", plot_dir / "TimeoutsMatchedVSUnmatched.png", ["Matched Timeouts", "Unmatched Timeouts"], 1)
+    plot_pie_chart([GEDMatchedTimeout, GEDUnmatchedTimeout], "Matched vs. Unmatched Timeouts", plot_dir / "TimeoutsMatchedVSUnmatched.png", ["Matched Timeouts", "Unmatched Timeouts"], 1)
 
     log_and_print("-" * 30, stat_path)
     log_and_print(f"SSA algorithm: {ssa_algo}", stat_path)
@@ -270,9 +272,12 @@ def _make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None):
     log_and_print(f"GLOBAL MATCHING RATE: {(matchedZHK_total / (matchedZHK_total + notMatchedZHK_total) * 100):.2f}%" if (matchedZHK_total + notMatchedZHK_total) > 0 else "N/A", stat_path)
     log_and_print("-" * 30, stat_path)
 
-def _make_plots(ged_rec_times: Optional[int] = None):
+def make_plots(ged_rec_times: Optional[int] = None,pathOverride = None):
+    if pathOverride:
+        make_plots_ssa(None,ged_rec_times,pathOverride)
+        return
     for ssa_algo in SSA_ALGOS:
-        _make_plots_ssa(ssa_algo, ged_rec_times)
+        make_plots_ssa(ssa_algo, ged_rec_times,pathOverride)
 
 def main():
     parser = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
@@ -281,8 +286,13 @@ def main():
         type=int,
         help="The number of Timeouts is reconstructed using the given Timeout"
     )
+    parser.add_argument("-p","--pathOverride", #BITTE DIESMAL DRIN LASSEN!
+        dest="PathOverride",
+        type=str,
+        help="OVERRIDES the standard Res-Path"
+    )
     args = parser.parse_args()
-    _make_plots(args.ged_rec_time)
+    make_plots(args.ged_rec_time,args.PathOverride)
 
 if __name__ == "__main__":
     main()
