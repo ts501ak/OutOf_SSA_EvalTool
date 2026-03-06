@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
 import re
-import gc
 import os
 import sys
 import argparse
 import contextlib
-from pathlib import Path
 from typing import Dict, List 
 from pebble import ProcessPool
 from multiprocessing import cpu_count
@@ -62,56 +60,46 @@ def _init_dirs(bin_names: List[str]):
 
 
 def _prepare_jobs_for_binary(bin_name: str) -> List[Dict[str, str]]:
-    ret = []
-    decompiler = None
-    try:
-        bin_path = BINS_DIR / bin_name
-        src_path = SRC_DIR / (bin_name + ".c")
-        if(not src_path.exists()):
-            raise FileNotFoundError(f"src file {bin_name}.c not found!")
+    bin_path = BINS_DIR / bin_name
+    src_path = SRC_DIR / (bin_name + ".c")
+
+    if(not src_path.exists()):
+        raise FileNotFoundError(f"src file {bin_name}.c not found!")
         
-        functions = []
-        try:
-            with open(os.devnull, "w") as devnull:
-                with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
-                    decompiler = Decompiler.from_path(bin_path)
-                    functions = decompiler._frontend.get_all_function_names()
-        except Exception as e:
-            log_and_print(f"[-] Error obtaining functions for binary {bin_name}: {e}", print_file=sys.stderr)
+    functions = []
+    with open(os.devnull, "w") as devnull:
+        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+            decompiler = Decompiler.from_path(bin_path)
+            functions = decompiler._frontend.get_all_function_names()
 
-        for func_name in functions:
-            if SUB_PATTERN.fullmatch(func_name):
-                continue
+    ret = []
+    for func_name in functions:
+        if SUB_PATTERN.fullmatch(func_name):
+            continue
 
-            ret.append(
-                {
-                    "bin": bin_name,
-                    "func": func_name,
-                }
-            ) 
-    except Exception as e:
-        log_and_print(f"[-] Error preparing jobs for binary {bin_name}: {e}", print_file=sys.stderr)
-    finally:
-        del decompiler
-        gc.collect()
+        ret.append({"bin": bin_name, "func": func_name}) 
 
     return ret
 
 def prepare_jobs(worker_count: int, mem_limit: int):
     jobs = []
-    args = [f.name for f in BINS_DIR.iterdir() if f.name not in NAMES_TO_IGNORE]
+    bin_names = [f.name for f in BINS_DIR.iterdir() if f.name not in NAMES_TO_IGNORE]
 
-    _init_dirs(args)
-    log_and_print(f"[*] Preparing jobs for {len(args)} binaries using {worker_count} workers...")
+    _init_dirs(bin_names)
+    log_and_print(f"[*] Preparing jobs for {len(bin_names)} binaries using {worker_count} workers...")
 
     with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit, )) as pool:
-        future = pool.map(_prepare_jobs_for_binary, args)
-        try:
-            for res in future.result():
+        iterator = pool.map(_prepare_jobs_for_binary, bin_names).result()
+        for bin in bin_names:
+            try:
+                res = next(iterator)
                 jobs.extend(res)
-        except Exception as e:
-            log_and_print(f"[-] Error during job preparation: {e}", print_file=sys.stderr)
+            except StopIteration:
+                break
+            except Exception as e:
+                log_and_print(f"[-] Error during job preparation for {bin}: {e}", print_file=sys.stderr)
 
+    log_and_print("")
     save_jobs(jobs) 
 
 def main():
@@ -126,7 +114,7 @@ def main():
         "-m", "--mem-limit",
         type=int,
         default=MEM_LIMIT_GB,
-        help=f"Memory limit for worker processes in GB (default: {MEM_LIMIT_GB} GB)"
+        help=f"Memory limit for worker processes in GB (default: {MEM_LIMIT_GB}GB)"
     )
 
     args = parser.parse_args()

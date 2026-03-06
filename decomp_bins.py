@@ -2,7 +2,6 @@
 
 import os
 import sys
-import gc
 import argparse
 import contextlib
 from multiprocessing import cpu_count
@@ -13,12 +12,12 @@ from shared import (
     SSA_ALGOS,
     DECOMP_MEM_LIMIT_GB,
     DECOMP_TIMEOUT_SECONDS,
+    init_worker,
     log_and_print,
     get_bin_file,
     get_dict_file,
     get_decomp_file,
     load_jobs,
-    init_worker,
 )
 
 # Add the 'dewolf' directory to sys.path
@@ -47,44 +46,45 @@ def _decompile_func(args):
     success = False
     decompiler = None
     os.environ["SSA_DICT_OUT"] = str(dict_path.absolute())
-    try:
-        with open(os.devnull, "w") as devnull:
-            with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
-                options = Decompiler.create_options()
-                options.update({"out-of-ssa-translation.mode": ssa_algo})
+    with open(os.devnull, "w") as devnull:
+        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+            options = Decompiler.create_options()
+            options.update({"out-of-ssa-translation.mode": ssa_algo})
                 
-                decompiler = Decompiler.from_path(bin_path)
-                task, code = decompiler.decompile(func)
-                success = not task.failed
+            decompiler = Decompiler.from_path(bin_path)
+            task, code = decompiler.decompile(func)
+            success = not task.failed
 
-        if not success:
-            raise Exception(task.failure_origin)
+    if not success:
+        raise Exception(task.failure_origin)
 
-        decomp_path.write_text(code)
+    decomp_path.write_text(code)
 
-    except Exception as e:
-        log_and_print(f"[-] Error decompiling function {func} in {bin}: {e}", print_file=sys.stderr)
-    finally:
-        del decompiler
-        gc.collect()
-
-def decomp_bins(worker_count: int, decompile_timeout: int, mem_limit: int, fresh: bool = True):
+def decomp_bins(worker_count: int, decompile_timeout: int, mem_limit: int, fresh: bool):
     jobs = load_jobs()
     if(not jobs):
-        log_and_print("[-] jobs.json not found! Try running prepare_jobs.py", print_file=sys.stderr)
+        log_and_print("[-] No jobs found! Try running prepare_jobs.py", print_file=sys.stderr)
         return
 
+    jobs = [{**d, "fresh": fresh} for d in jobs]
     for ssa_algo in SSA_ALGOS: 
-        jobs = [{**d, "ssa_algo": ssa_algo, "fresh": fresh} for d in jobs]
-        log_and_print(f"[*] Decompiling {len(jobs)} functions with ssa algorithm {ssa_algo} using {worker_count} workers...")
+        c_jobs = [{**d, "ssa_algo": ssa_algo} for d in jobs]
+        log_and_print(f"[*] Decompiling {len(c_jobs)} functions with ssa algorithm {ssa_algo} using {worker_count} workers...")
         with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit,)) as pool:
-            future = pool.map(_decompile_func, jobs, timeout=decompile_timeout)
-            try:
-                for _ in future.result():
-                    pass
-            except Exception as e:
-                print(f"[-] Error during decompilation pool execution: {e}", file=sys.stderr)
-                gc.collect()
+            iterator = pool.map(_decompile_func, c_jobs, timeout=decompile_timeout).result()
+            for job in c_jobs:
+                try:
+                    next(iterator)
+                except StopIteration:
+                    break;
+                except TimeoutError:
+                    bin = job["bin"]
+                    func = job["func"]
+                    print(f"[-] Decompilation of function {func} in {bin} timed out", file=sys.stderr)
+                except Exception as e: 
+                    bin = job["bin"]
+                    func = job["func"]
+                    print(f"[-] Error during decompilation of function {func} in {bin}: {e}", file=sys.stderr)
 
         log_and_print("")
 
@@ -105,13 +105,13 @@ def main():
         "-t", "--decompile-timeout", 
         type=int, 
         default=DECOMP_TIMEOUT_SECONDS,
-        help=f"Dewolf decompile timeout (default: {DECOMP_TIMEOUT_SECONDS})"
+        help=f"Dewolf decompile timeout in seconds (default: {DECOMP_TIMEOUT_SECONDS}s)"
     )
     parser.add_argument(
         "-m", "--mem-limit",
         type=int,
         default=DECOMP_MEM_LIMIT_GB,
-        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB} GB)"
+        help=f"Memory limit for worker processes in GB (default: {DECOMP_MEM_LIMIT_GB}GB)"
     )
     args = parser.parse_args()
     decomp_bins(args.processes, args.decompile_timeout, args.mem_limit, args.fresh)

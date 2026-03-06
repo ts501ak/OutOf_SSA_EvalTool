@@ -3,7 +3,6 @@
 import re
 import sys
 import argparse
-from pathlib import Path
 from pebble import ProcessPool
 from multiprocessing import cpu_count
 
@@ -18,6 +17,10 @@ from shared import (
     get_src_func_file,
     get_decomp_func_file,
 )
+
+class FunctionExtractionError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 def _remove_comments(buf: str) -> str:
     """
@@ -189,7 +192,7 @@ def _extract_function_from_buf(buf: str, func_name: str) -> str:
             full_code = buf[def_start_index : body_end_brace + 1].strip()
             return full_code
 
-    raise Exception(f"Function {func_name} not found!")
+    raise FunctionExtractionError(f"Function {func_name} not found!")
 
 def _process_function_pair(args):
     bin = args.get("bin")
@@ -213,39 +216,37 @@ def _process_function_pair(args):
         try:
             raw_code = src_path.read_text()
             code = _extract_function_from_buf(raw_code, func)
-
-            if code == "":
-                raise Exception("Extracted empty function")
-
             extracted_content[dest_path] = code
-        except Exception as e:
-            #log_and_print(f"[-] Error extracting {func} from {src_path}: {e}", print_file=sys.stderr)
+        except FunctionExtractionError:
             return
-
     try:
         for path, content in extracted_content.items():
             path.write_text(content)
     except Exception as e:
-        log_and_print(f"[-] Error writing output: {e}", print_file=sys.stderr)
         for path in extracted_content.keys():
             path.unlink(missing_ok=True)
+        raise e
 
-def process_functions(worker_count: int, mem_limit: int, fresh: bool = True):
+def process_functions(worker_count: int, mem_limit: int, fresh: bool):
     jobs = load_jobs()
     if(not jobs):
-        log_and_print("[-] jobs.json not found! Try running prepare_jobs.py", print_file=sys.stderr)
+        log_and_print("[-] No jobs found! Try running prepare_jobs.py", print_file=sys.stderr)
         return
 
+    jobs = [{**d, "fresh": fresh} for d in jobs]
     for ssa_algo in SSA_ALGOS:
-        jobs = [{**d, "ssa_algo": ssa_algo, "fresh": fresh} for d in jobs]
-        log_and_print(f"[*] Processing functions for ssa algorithm {ssa_algo} ausing {worker_count} workers...")
+        c_jobs = [{**d, "ssa_algo": ssa_algo} for d in jobs]
+        log_and_print(f"[*] Processing functions for ssa algorithm {ssa_algo} using {worker_count} workers...")
         with ProcessPool(max_workers=worker_count, initializer=init_worker, initargs=(mem_limit,)) as pool:
-            future = pool.map(_process_function_pair, jobs)
-            try:
-                for _ in future.result():
-                    pass
-            except Exception as e:
-                log_and_print(f"[-] Error during function extraction pool execution: {e}", print_file=sys.stderr)
+            iterator = pool.map(_process_function_pair, c_jobs).result()
+            for job in c_jobs:
+                try:
+                    next(iterator)
+                except StopIteration:
+                    break
+                except Exception as e:
+                    func = job["func"]
+                    log_and_print(f"[-] Error extracting function {func}: {e}", print_file=sys.stderr)
 
         log_and_print("")
     
@@ -265,7 +266,7 @@ def main():
     parser.add_argument("-m", "--mem-limit",
         type=int,
         default=MEM_LIMIT_GB,
-        help=f"Memory limit for worker processes in GB (default: {MEM_LIMIT_GB} GB)"
+        help=f"Memory limit for worker processes in GB (default: {MEM_LIMIT_GB}GB)"
     )
     args = parser.parse_args()
     process_functions(args.processes, args.mem_limit, args.fresh)

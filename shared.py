@@ -1,8 +1,9 @@
+import sys
+import os
 import json
 import shutil
 import resource
 from pathlib import Path
-import sys
 from typing import Dict, List, Optional, TextIO
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -21,6 +22,10 @@ MEM_LIMIT_GB = 8
 DECOMP_MEM_LIMIT_GB = 12 
 GRAPH_EDIT_DISTANCE_TIMEOUT = 7 * 60 + 30 
 DECOMP_TIMEOUT_SECONDS = 10 * 60 
+
+class InfoException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 def init_worker(limit_gb: int):
     limit_bytes = limit_gb * 1024**3
@@ -90,13 +95,23 @@ def get_dict_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
 def get_res_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
     return get_res_bin_dir(ssa_algo, bin_name) / f"{func_name}.json"
 
-def clear_and_create_dir(path: Path):
+def clear_and_create_dir(path: Path, log_file: Path = LOG_FILE):
     """
     Deletes a directory if it exists and recreates it empty.
     """
-    if path.exists():
-        shutil.rmtree(path)
-    path.mkdir(parents=False, exist_ok=True) #False is a sanity check
+    try:
+        if path.exists():
+            shutil.rmtree(path)
+        path.mkdir(parents=False, exist_ok=True) #False is a sanity check
+    except Exception as e:
+        log_and_print(f"Unable to clear dir {str}: {e}", 
+                      log_file_path=log_file, print_file=sys.stderr) 
+
+def clear_log():
+    try:
+        os.remove(LOG_FILE)
+    except Exception as e:
+        print(f"Unable to remove log file {LOG_FILE}: {e}", file=sys.stderr)
 
 def save_jobs(jobs: List[Dict[str, str]]):
     """Saves Jobs to JSON"""

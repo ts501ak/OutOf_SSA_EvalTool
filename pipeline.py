@@ -12,20 +12,27 @@ from shared import (
     DECOMP_MEM_LIMIT_GB,
     DECOMP_TIMEOUT_SECONDS,
     GRAPH_EDIT_DISTANCE_TIMEOUT,
+    log_and_print,
+    clear_log,
 ) 
 
 sep = '-' * 100
 
 def start_stage(name: str):
-    print(f"Starting **{name}**")
-    print(sep)
+    log_and_print(f"Starting ** {name} **")
+    log_and_print(sep)
 
 def end_stage():
-    print(sep)
-    print()
+    log_and_print(sep)
+    log_and_print("")
 
 def main():
     parser = argparse.ArgumentParser(description="Parallel Binary Decompiler")
+    parser.add_argument(
+        "-f", "--fresh",
+        action=argparse.BooleanOptionalAction,
+        help=f"Overwrite exisitng files (default: {False})"
+    )
     parser.add_argument(
         "-p", "--processes", 
         type=int, 
@@ -42,37 +49,40 @@ def main():
         "-t", "--decompile-timeout", 
         type=int, 
         default=DECOMP_TIMEOUT_SECONDS,
-        help=f"Timeout for a decompilation job (default: {DECOMP_TIMEOUT_SECONDS})"
+        help=f"Timeout for a decompilation job in seconds (default: {DECOMP_TIMEOUT_SECONDS}s)"
     )
     parser.add_argument("-m", "--mem-limit",
         type=int,
         default=MEM_LIMIT_GB,
-        help=f"Memory limit in GB per process (default: {MEM_LIMIT_GB})"
+        help=f"Memory limit in GB per process (default: {MEM_LIMIT_GB}GB)"
     )
     parser.add_argument("-z", "--decomp-mem-limit",
         type=int,
         default=DECOMP_MEM_LIMIT_GB,
-        help=f"Memory limit in GB for a decompilation job (default: {DECOMP_MEM_LIMIT_GB})"
+        help=f"Memory limit in GB for a decompilation job (default: {DECOMP_MEM_LIMIT_GB}GB)"
     )
     parser.add_argument(
         "-g", "--graph-edit-timeout", 
         type=int,
         default=GRAPH_EDIT_DISTANCE_TIMEOUT,
-        help=f"Timeout for the graph edit distance approx. algorithm (default {GRAPH_EDIT_DISTANCE_TIMEOUT})"
+        help=f"Timeout for the graph edit distance approx. algorithm in seconds (default {GRAPH_EDIT_DISTANCE_TIMEOUT}s)"
     )
     args=parser.parse_args()
     
-    start_stage("Preparing jobs")
-    prepare_jobs(args.processes, args.mem_limit)
+    clear_log()
+    if (args.fresh):
+        start_stage("Process Preparation")
+        prepare_jobs(args.processes, args.mem_limit)
+        end_stage()
+
+    start_stage("Binary Decompilation")
+    decomp_bins(args.decomp_processes, args.decompile_timeout, args.decomp_mem_limit, args.fresh)
     end_stage()
-    start_stage("Decompiling bins")
-    decomp_bins(args.decomp_processes, args.decompile_timeout, args.decomp_mem_limit)
+    start_stage("Function Processing")
+    process_functions(args.processes, args.mem_limit, args.fresh)
     end_stage()
-    start_stage("Processing functions")
-    process_functions(args.processes, args.mem_limit)
-    end_stage()
-    start_stage("Computing results")
-    comp_res(args.processes, args.mem_limit, args.graph_edit_timeout)
+    start_stage("Result Computation")
+    comp_res(args.processes, args.mem_limit, args.graph_edit_timeout, args.fresh)
     end_stage()
 
 
