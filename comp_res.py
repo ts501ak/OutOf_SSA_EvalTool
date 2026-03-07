@@ -21,7 +21,8 @@ from shared import (
         get_dict_file,
         get_src_func_file,
         get_decomp_func_file,
-) 
+)
+from compareDicts import are_the_same
 
 def _comp_res_for_job(args):
     bin = args.get("bin")
@@ -70,8 +71,7 @@ def _filter_jobs(jobs_in: List[Dict[str, str]]) -> List[Dict[str,str]]:
 
             dict_files.append(dict_f)
             
-        #if missing_file or are_the_same(dict_files):
-        if missing_file:
+        if missing_file or are_the_same(dict_files):
             continue
 
         jobs_out.append(j)
