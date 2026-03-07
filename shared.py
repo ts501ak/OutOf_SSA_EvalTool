@@ -82,7 +82,7 @@ def get_res_bin_dir(ssa_algo: str, bin_name: str) -> Path:
     return get_res_dir(ssa_algo) / bin_name
 
 def get_decomp_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
-    return get_decomp_bin_dir(ssa_algo, bin_name) / func_namefi
+    return get_decomp_bin_dir(ssa_algo, bin_name) / func_name
 
 def get_src_func_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
     return get_src_func_bin_dir(ssa_algo, bin_name) / func_name
