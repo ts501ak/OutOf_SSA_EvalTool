@@ -1,12 +1,13 @@
 #!/usr/bin/env python3 
 
+from ast import Tuple
 import sys
 import json
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
 
 from shared import (
     SSA_ALGOS,
@@ -129,18 +130,13 @@ def plot_pie_chart(data, title, out_path: Path, funcNames, threshold):
     plt.savefig(out_path)
     plt.close()
 
-def iterJSONFiles(folder: Path):
-    for fp in sorted(folder.glob("**/*.json")):
-        with fp.open("r") as f:
-            try:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    filename = f"{fp.parent.stem}: {fp.stem}"
-                    yield data, filename
-            except json.JSONDecodeError:
-                print(f"[SKIP] Corrupt JSON: {fp}")
+def load_json(file: Path):
+    stat = json.loads(file.read_text())
+    func = f"{file.parent.stem}: {file.stem}"
+    return stat, func
 
-def make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None, pathOverride = None):
+
+def _make_plots(plot_dir: Path, stat_path: Path, common_files: Set[Path], ged_rec_time: Optional[int] = None):
     total = 0
     totalGED = 0
     matchedGED = 0
@@ -165,19 +161,14 @@ def make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None, pathOverri
     sizeUnmatchedZHK = []
     sizeMatchedZHK = []
 
-    if (ssa_algo == None) and (pathOverride != None):
-        res_dir = Path(f"{pathOverride}/res")
-        plot_dir = Path(f"dataset/plots")
-    else:
-        res_dir = get_res_dir(ssa_algo)
-        plot_dir = get_plot_dir(ssa_algo)
-
-    stat_path = plot_dir / "stats.txt"
-
-    clear_and_create_dir(plot_dir)
-
     try:
-        for stat, func in iterJSONFiles(res_dir):
+        for file in common_files:
+            try:
+                stat, func = load_json(file)
+            except:
+                print(f"[SKIP] JSON: {file}")
+                continue
+
             try:
                 total += 1
                 funcNames.append(func)
@@ -265,19 +256,71 @@ def make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None, pathOverri
     # 12. Pie Chart of matched vs. unmatched Timeouts
     plot_pie_chart([GEDMatchedTimeout, GEDUnmatchedTimeout], "Matched vs. Unmatched Timeouts", plot_dir / "TimeoutsMatchedVSUnmatched.png", ["Matched Timeouts", "Unmatched Timeouts"], 1)
 
-    log_and_print("-" * 30, stat_path)
-    log_and_print(f"SSA algorithm: {ssa_algo}", stat_path)
     log_and_print(f"TOTAL GED: {totalGED:.2f}", stat_path)
     log_and_print(f"TOTAL FUNCTIONS EVALUATED: {total}", stat_path)
     log_and_print(f"GLOBAL MATCHING RATE: {(matchedZHK_total / (matchedZHK_total + notMatchedZHK_total) * 100):.2f}%" if (matchedZHK_total + notMatchedZHK_total) > 0 else "N/A", stat_path)
-    log_and_print("-" * 30, stat_path)
 
-def make_plots(ged_rec_times: Optional[int] = None,pathOverride = None):
-    if pathOverride:
-        make_plots_ssa(None,ged_rec_times,pathOverride)
-        return
+def get_common_res_files(): 
+    common_rel_paths = None
     for ssa_algo in SSA_ALGOS:
-        make_plots_ssa(ssa_algo, ged_rec_times,pathOverride)
+        res_dir = get_res_dir(ssa_algo)
+        current_files = {p.relative_to(res_dir) for p in res_dir.glob("**/*.json")}
+        
+        if common_rel_paths is None:
+            common_rel_paths = current_files
+        else:
+            common_rel_paths.intersection_update(current_files)
+            
+    if not common_rel_paths:
+        common_rel_paths = set()
+    
+    result = []
+    for ssa_algo in SSA_ALGOS:
+        res_dir = get_res_dir(ssa_algo)
+        algo_absolute_paths = {res_dir / rel_path for rel_path in common_rel_paths}
+        result.append((ssa_algo, algo_absolute_paths))
+            
+    return result
+def make_all_plots(ged_rec_times: Optional[int] = None, pathOverride = None):
+    runs = []
+    try:
+        if pathOverride:
+            override_path = Path(pathOverride)
+            if not override_path.exists():
+                print(f"[-] Error: Override path does not exist: {override_path}", file=sys.stderr)
+                return
+            
+            runs.append((
+                str(override_path),
+                Path("./plots"), 
+                set(override_path.glob("**/*.json"))
+            ))
+        else:
+            for ssa_algo, files in get_common_res_files(): 
+                runs.append((ssa_algo, get_plot_dir(ssa_algo), files))
+                
+    except Exception as e:
+        print(f"[-] Error during file discovery: {e}", file=sys.stderr)
+        return
+
+    for name, plot_dir, files in runs:
+        try:
+            stat_path = plot_dir / "stat.txt"
+            clear_and_create_dir(plot_dir)
+
+            log_and_print("-" * 30, stat_path)
+            log_and_print(f"Processing: {name}", stat_path)
+                
+            if files:
+                _make_plots(plot_dir, stat_path, files, ged_rec_times)
+            else:
+                log_and_print("[-] Warning: No files found to plot!", stat_path)
+            
+            log_and_print("-" * 30, stat_path)
+            print()
+            
+        except Exception as e:
+            print(f"[-] Error generating plots for {name}: {e}", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(description="Collect and visualize the stats in the JSON files")
@@ -292,7 +335,7 @@ def main():
         help="OVERRIDES the standard Res-Path"
     )
     args = parser.parse_args()
-    make_plots(args.ged_rec_time,args.PathOverride)
+    make_all_plots(args.ged_rec_time,args.PathOverride)
 
 if __name__ == "__main__":
     main()
