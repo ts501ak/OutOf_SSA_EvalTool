@@ -3,13 +3,13 @@ import itertools
 from pathlib import Path
 from collections import defaultdict
 
-def are_the_same(dictPaths : list[Path], threshold: float = 1) -> True|False:
+def are_the_same(dictPaths : list[Path], threshold: float = 1) -> bool:
     dicts : list[dict] = []
     for x in dictPaths: #recover Dicts
         with open(x) as f:
             dicts.append(json.load(f))
 
-    hashes: list[set[int]] = []
+    hashes = []
     for c_dict in dicts:
         value_to_keys = defaultdict(list) #group values by key
         for key, value in c_dict.items():
@@ -17,7 +17,7 @@ def are_the_same(dictPaths : list[Path], threshold: float = 1) -> True|False:
         
         hashes.append(
             { 
-                hash(tuple(sorted(keys))) 
+                tuple(sorted(keys))
                 for keys in value_to_keys.values() 
             }
         )
@@ -32,6 +32,4 @@ def are_the_same(dictPaths : list[Path], threshold: float = 1) -> True|False:
     if total_comparisons == 0:
         return True 
 
-    if(non_matches > 0):
-        print(non_matches, matches, total_comparisons, non_matches / total_comparisons)
     return (non_matches / total_comparisons) <= threshold

@@ -51,7 +51,7 @@ def _decompile_func(args):
             options = Decompiler.create_options()
             options.update({"out-of-ssa-translation.mode": ssa_algo})
             decompiler = Decompiler.from_path(bin_path)
-            task, code = decompiler.decompile(func)
+            task, code = decompiler.decompile(func, task_options = options)
             success = not task.failed
 
     if not success:
