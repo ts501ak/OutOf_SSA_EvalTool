@@ -351,6 +351,8 @@ class SimilarityMatching:
                 stats.sizeMatchedZHK.append(len(subgraphDict[zz][1][0]))
                 start = time_ns()
                 ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
+                if ged is None:
+                    raise Exception("nx.graph_edit_distance returned None! It's not clear how this result should be interpreted, therefore it's beeing discarded by this exception!")
                 stats.lastGED += ged
                 stats.matchedGED += ged
                 end = time_ns()
@@ -375,6 +377,8 @@ class SimilarityMatching:
                 decompSet.update(gdecompNodes)
                 start = time_ns()
                 ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet), undirdecompGraph.subgraph(decompSet), node_match=areSameNode, timeout=timeout)
+                if ged is None:
+                    raise Exception("nx.graph_edit_distance returned None! It's not clear how this result should be interpreted, therefore it's beeing discarded by this exception!")
                 stats.lastGED += ged
                 stats.matchedGED += ged
                 end = time_ns()
@@ -399,6 +403,8 @@ class SimilarityMatching:
 
         start = time_ns()
         ged = nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc), undirdecompGraph.subgraph(remaindecomp), node_match=areSameNode, timeout=timeout)
+        if ged is None:
+            raise Exception("nx.graph_edit_distance returned None! It's not clear how this result should be interpreted, therefore it's beeing discarded by this exception!")
         stats.lastGED += ged
         stats.unmatchedGED += ged
         end = time_ns()
