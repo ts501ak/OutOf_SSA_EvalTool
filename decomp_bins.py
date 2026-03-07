@@ -79,11 +79,11 @@ def decomp_bins(worker_count: int, decompile_timeout: int, mem_limit: int, fresh
                 except TimeoutError:
                     bin = job["bin"]
                     func = job["func"]
-                    print(f"[-] Decompilation of function {func} in {bin} timed out", file=sys.stderr)
+                    log_and_print(f"[-] Decompilation of function {func} in {bin} timed out", print_file=sys.stderr)
                 except Exception as e: 
                     bin = job["bin"]
                     func = job["func"]
-                    print(f"[-] Error during decompilation of function {func} in {bin}: {e}", file=sys.stderr)
+                    log_and_print(f"[-] Error during decompilation of function {func} in {bin}: {e}", print_file=sys.stderr)
 
         log_and_print("")
 
