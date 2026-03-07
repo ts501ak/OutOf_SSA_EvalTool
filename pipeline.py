@@ -12,6 +12,7 @@ from shared import (
     DECOMP_MEM_LIMIT_GB,
     DECOMP_TIMEOUT_SECONDS,
     GRAPH_EDIT_DISTANCE_TIMEOUT,
+    DECOMP_COMP_TRESHOLD,
     log_and_print,
     clear_log,
 ) 
@@ -67,6 +68,13 @@ def main():
         default=GRAPH_EDIT_DISTANCE_TIMEOUT,
         help=f"Timeout for the graph edit distance approx. algorithm in seconds (default {GRAPH_EDIT_DISTANCE_TIMEOUT}s)"
     )
+    parser.add_argument(
+        "-s", "--decomp-comp-threshold", 
+        type=float,
+        default=DECOMP_COMP_TRESHOLD,
+        help=f"Treshold for deciding wether the output of the diffrent ssa algpeorithm is the same as percentage (default {DECOMP_COMP_TRESHOLD}s)"
+    )
+
     args=parser.parse_args()
     
     clear_log()
@@ -82,7 +90,8 @@ def main():
     process_functions(args.processes, args.mem_limit, args.fresh)
     end_stage()
     start_stage("Result Computation")
-    comp_res(args.processes, args.mem_limit, args.graph_edit_timeout, args.fresh)
+    comp_res(args.processes, args.mem_limit, args.graph_edit_timeout, 
+             args.decomp_comp_threshold, args.fresh)
     end_stage()
 
 

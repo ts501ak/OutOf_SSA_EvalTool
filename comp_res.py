@@ -14,6 +14,7 @@ from shared import (
         SSA_ALGOS,
         MEM_LIMIT_GB,
         GRAPH_EDIT_DISTANCE_TIMEOUT,
+        DECOMP_COMP_TRESHOLD,
         init_worker,
         log_and_print,
         load_jobs, 
@@ -50,7 +51,7 @@ def _init_worker(limit_gb: int):
     processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
     init_worker(limit_gb)
 
-def _filter_jobs(jobs_in: List[Dict[str, str]]) -> List[Dict[str,str]]:
+def _filter_jobs(jobs_in: List[Dict[str, str]], threshold: float) -> List[Dict[str,str]]:
     jobs_out = []
 
     for j in jobs_in:
@@ -64,28 +65,27 @@ def _filter_jobs(jobs_in: List[Dict[str, str]]) -> List[Dict[str,str]]:
             src_func_f = get_src_func_file(ssa_algo, bin, func)
             decomp_func_f = get_decomp_func_file(ssa_algo, bin, func)
 
-            #if not (dict_f.exists() and src_func_f.exists() and decomp_func_f.exists()):
-            if not (src_func_f.exists() and decomp_func_f.exists()):
+            if not (dict_f.exists() and src_func_f.exists() and decomp_func_f.exists()):
                 missing_file = True
                 break
 
             dict_files.append(dict_f)
             
-        if missing_file or are_the_same(dict_files):
+        if missing_file or are_the_same(dict_files, threshold):
             continue
 
         jobs_out.append(j)
 
     return jobs_out
 
-def comp_res(worker_count: int, mem_limit: int, ged_timeout: int, fresh: bool):
+def comp_res(worker_count: int, mem_limit: int, ged_timeout: int, threshold: float, fresh: bool):
     jobs = load_jobs() 
     if not jobs:
         log_and_print("[-] No jobs found! Try running prepare_jobs.py", print_file=sys.stderr)
         return
 
     jobs = [{**d, "ged_timeout": ged_timeout, "fresh": fresh } 
-                  for d in _filter_jobs(jobs)]
+                  for d in _filter_jobs(jobs, threshold)]
 
     for ssa_algo in SSA_ALGOS:
         c_jobs = [{ **d, "ssa_algo": ssa_algo } for d in jobs]
@@ -139,8 +139,16 @@ def main():
         default=GRAPH_EDIT_DISTANCE_TIMEOUT,
         help=f"Timeout for the graph edit distance approx. algorithm in seconds (default {GRAPH_EDIT_DISTANCE_TIMEOUT}s)"
     )
+    parser.add_argument(
+        "-s", "--decomp-comp-threshold", 
+        type=float,
+        default=DECOMP_COMP_TRESHOLD,
+        help=f"Treshold for deciding wether the output of the diffrent ssa algpeorithm is the same as percentage (default {DECOMP_COMP_TRESHOLD}s)"
+    )
+
     args = parser.parse_args()
-    comp_res(args.processes, args.mem_limit, args.graph_edit_timeout, args.fresh)
+    comp_res(args.processes, args.mem_limit, args.graph_edit_timeout, 
+             args.decomp_comp_threshold, args.fresh)
 
 if __name__ == "__main__":
     main()

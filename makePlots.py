@@ -140,7 +140,7 @@ def iterJSONFiles(folder: Path):
             except json.JSONDecodeError:
                 print(f"[SKIP] Corrupt JSON: {fp}")
 
-def make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None,pathOverride = None):
+def make_plots_ssa(ssa_algo: str, ged_rec_time: Optional[int] = None, pathOverride = None):
     total = 0
     totalGED = 0
     matchedGED = 0

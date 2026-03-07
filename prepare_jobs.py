@@ -16,6 +16,8 @@ from shared import (
     SSA_ALGOS,
     NAMES_TO_IGNORE,
     MEM_LIMIT_GB,
+    get_dict_bin_dir,
+    get_dict_dir,
     log_and_print,
     init_worker,
     get_base_dir,
@@ -49,6 +51,7 @@ def _init_dirs(bin_names: List[str]):
         clear_and_create_dir(get_decomp_dir(ssa_algo))
         clear_and_create_dir(get_src_func_dir(ssa_algo)) 
         clear_and_create_dir(get_decomp_func_dir(ssa_algo))
+        clear_and_create_dir(get_dict_dir(ssa_algo))
         clear_and_create_dir(get_res_dir(ssa_algo))
 
     for bin_name in bin_names:
@@ -56,6 +59,7 @@ def _init_dirs(bin_names: List[str]):
             clear_and_create_dir(get_decomp_bin_dir(ssa_algo, bin_name))
             clear_and_create_dir(get_decomp_func_bin_dir(ssa_algo, bin_name))
             clear_and_create_dir(get_src_func_bin_dir(ssa_algo, bin_name))
+            clear_and_create_dir(get_dict_bin_dir(ssa_algo, bin_name))
             clear_and_create_dir(get_res_bin_dir(ssa_algo, bin_name))
 
 

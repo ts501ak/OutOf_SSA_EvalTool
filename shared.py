@@ -18,6 +18,7 @@ JOBS_FILE = DATASET_DIR / "jobs.json"
 SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008", "simple"]
 
 NAMES_TO_IGNORE = { ".gitignore" }
+DECOMP_COMP_TRESHOLD = 0
 MEM_LIMIT_GB = 8 
 DECOMP_MEM_LIMIT_GB = 12 
 GRAPH_EDIT_DISTANCE_TIMEOUT = 7 * 60 + 30 
@@ -104,7 +105,7 @@ def clear_and_create_dir(path: Path, log_file: Path = LOG_FILE):
             shutil.rmtree(path)
         path.mkdir(parents=False, exist_ok=True) #False is a sanity check
     except Exception as e:
-        log_and_print(f"Unable to clear dir {str}: {e}", 
+        log_and_print(f"Unable to clear dir {path}: {e}", 
                       log_file_path=log_file, print_file=sys.stderr) 
 
 def clear_log():

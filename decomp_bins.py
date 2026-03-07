@@ -50,7 +50,6 @@ def _decompile_func(args):
         with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
             options = Decompiler.create_options()
             options.update({"out-of-ssa-translation.mode": ssa_algo})
-                
             decompiler = Decompiler.from_path(bin_path)
             task, code = decompiler.decompile(func)
             success = not task.failed

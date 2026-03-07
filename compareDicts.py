@@ -1,41 +1,37 @@
-from pathlib import Path
 import json
+import itertools 
+from pathlib import Path
 from collections import defaultdict
 
-def are_the_same(dictPaths : list[Path],threshold = 0) -> True|False:
+def are_the_same(dictPaths : list[Path], threshold: float = 1) -> True|False:
     dicts : list[dict] = []
     for x in dictPaths: #recover Dicts
         with open(x) as f:
-            dicts.append(json.loads(f.read()))
+            dicts.append(json.load(f))
 
+    hashes: list[set[int]] = []
+    for c_dict in dicts:
+        value_to_keys = defaultdict(list) #group values by key
+        for key, value in c_dict.items():
+            value_to_keys[value].append(key)
+        
+        hashes.append(
+            { 
+                hash(tuple(sorted(keys))) 
+                for keys in value_to_keys.values() 
+            }
+        )
 
-    dictValues = [defaultdict(lambda : []) for _ in dicts]
-    for i in range(len(dicts)): #group values by key
-        aktDict = dicts[i]
-        for key, value in aktDict.items():
-            dictValues[value].append(key)
-
-
-    hashes = [[] for _ in dicts]
-    for i in range(len(dictValues)): #all SSA-Variables are named the same
-        aktDict = dictValues[i]
-        for val in aktDict.values():
-            h = hash(tuple(sorted(val)))
-            hashes[i].append(h)
-    
-    nonMatches = [0 for _ in range(len(hashes))]
     matches = 0
-    for i in range(len(hashes)):
-        for h in hashes[i]:
-            for j in range(len(hashes)):
-                if h not in hashes[j]:
-                    nonMatches[j] += 1
-                else:
-                    matches += 1
+    non_matches = 0 
+    for set_i, set_j in itertools.combinations(hashes, 2):
+        matches += len(set_i & set_j)
+        non_matches += len(set_i ^ set_j)
 
-    if matches == 0: matches += 1
+    total_comparisons = matches + non_matches
+    if total_comparisons == 0:
+        return True 
 
-    if (sum(nonMatches)/matches) <= threshold:
-        return True
-    else:
-        return False
+    if(non_matches > 0):
+        print(non_matches, matches, total_comparisons, non_matches / total_comparisons)
+    return (non_matches / total_comparisons) <= threshold
