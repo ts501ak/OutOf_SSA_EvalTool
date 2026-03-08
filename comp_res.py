@@ -24,6 +24,7 @@ from shared import (
         get_decomp_func_file,
 )
 from compareDicts import are_the_same
+from traceback import format_tb
 
 def _comp_res_for_job(args):
     bin = args.get("bin")
@@ -110,7 +111,7 @@ def comp_res(worker_count: int, mem_limit: int, ged_timeout: int, threshold: flo
                     func = job["func"]
                     ssa_algo = job["ssa_algo"]
                     res_path = get_res_file(ssa_algo, bin, func)
-                    log_and_print(f"[-] Error processing {res_path}: {e}", print_file=sys.stderr)
+                    log_and_print(f"[-] Error processing {res_path}: {e}, Traceback: {format_tb(e.__traceback__)}", print_file=sys.stderr)
     
         log_and_print("")
 
