@@ -1,4 +1,3 @@
-from shared import InfoException
 from typing import DefaultDict
 import networkx as nx
 import re
@@ -532,9 +531,9 @@ def mergeDicts(d1 :dict, d2 : dict):
         if k in d2.keys():
             values.append(d2[k])
         values = list(set(values))
-        if len(values) > 1:
-            #raise InfoException("Found 2 contradicting certain matches! We're taking the first one!")
-            pass
+        #if len(values) > 1:
+        #    #raise InfoException("Found 2 contradicting certain matches! We're taking the first one!")
+        #    pass
         res[k] = values[0]
     return res   
 

@@ -24,10 +24,6 @@ DECOMP_MEM_LIMIT_GB = 14
 GRAPH_EDIT_DISTANCE_TIMEOUT = 7 * 60 + 30 
 DECOMP_TIMEOUT_SECONDS = 10 * 60 
 
-class InfoException(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
 def init_worker(limit_gb: int):
     limit_bytes = limit_gb * 1024**3
     _, hard = resource.getrlimit(resource.RLIMIT_AS)

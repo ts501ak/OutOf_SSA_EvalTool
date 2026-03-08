@@ -10,7 +10,6 @@ from multiprocessing import cpu_count
 from sim_matching import SimilarityMatching
 from dependencyGraphfromC import DependencyGraphfromCFunction
 from shared import (
-        InfoException,
         SSA_ALGOS,
         MEM_LIMIT_GB,
         GRAPH_EDIT_DISTANCE_TIMEOUT,
@@ -99,13 +98,6 @@ def comp_res(worker_count: int, mem_limit: int, ged_timeout: int, threshold: flo
                     next(iterator)
                 except StopIteration:
                     break
-                except InfoException as e:
-                    bin = job["bin"]
-                    func = job["func"]
-                    ssa_algo = job["ssa_algo"]
-                    res_path = get_res_file(ssa_algo, bin, func)
-
-                    log_and_print(f"[-] Info processing {res_path}: {e}", print_file=sys.stderr)
                 except Exception as e:
                     bin = job["bin"]
                     func = job["func"]
