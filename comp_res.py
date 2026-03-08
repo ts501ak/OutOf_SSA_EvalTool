@@ -110,7 +110,6 @@ def comp_res(worker_count: int, mem_limit: int, ged_timeout: int, threshold: flo
                     func = job["func"]
                     ssa_algo = job["ssa_algo"]
                     res_path = get_res_file(ssa_algo, bin, func)
-
                     log_and_print(f"[-] Error processing {res_path}: {e}", print_file=sys.stderr)
     
         log_and_print("")

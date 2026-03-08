@@ -3,7 +3,7 @@ import itertools
 from pathlib import Path
 from collections import defaultdict
 
-def are_the_same(dictPaths : list[Path], threshold: float = 1) -> bool:
+def are_the_same(dictPaths : list[Path], threshold: float = 0) -> bool:
     dicts : list[dict] = []
     for x in dictPaths: #recover Dicts
         with open(x) as f:
@@ -25,13 +25,17 @@ def are_the_same(dictPaths : list[Path], threshold: float = 1) -> bool:
     
     nonMatches = [0 for _ in range(len(hashes))]
     matches = 0
-    non_matches = 0 
-    for set_i, set_j in itertools.combinations(hashes, 2):
-        matches += len(set_i & set_j)
-        non_matches += len(set_i ^ set_j)
+    for i in range(len(hashes)):
+        for h in hashes[i]:
+            for j in range(len(hashes)):
+                if h not in hashes[j]:
+                    nonMatches[j] += 1
+                else:
+                    matches += 1
 
-    total_comparisons = matches + non_matches
-    if total_comparisons == 0:
-        return True 
+    if (matches == 0) and (sum(nonMatches) == 0): matches += 1 #prevent divideByZeorError
 
-    return (non_matches / total_comparisons) <= threshold
+    if (sum(nonMatches)/(matches + sum(nonMatches))) <= threshold:
+        return True
+    else:
+        return False 
