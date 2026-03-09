@@ -77,8 +77,8 @@ def main():
 
     args=parser.parse_args()
     
-    clear_log()
     if (args.fresh):
+        clear_log()
         start_stage("Process Preparation")
         prepare_jobs(args.processes, args.mem_limit)
         end_stage()
