@@ -48,9 +48,9 @@ for job in jobs:
         far.append(((abs((maxv - maxv * args.max) - minv)),f"{binary}::{func}"))
 
 far = sorted(far,key=lambda x : x[0],reverse=True)
-print(len(far))
+#print(len(far))
 close = sorted(close,key=lambda x : x[0],reverse=True)
-print(len(close))
+#print(len(close))
 print("Functions with close GED values from closets to least close:")
 for x in range(min(10,len(close))):
     print("\t",close[x][1],sep="")
