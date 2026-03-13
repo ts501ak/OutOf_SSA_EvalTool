@@ -38,7 +38,6 @@ for job in jobs:
         continue
 
     distances.append((np.var(GEDValues),f"{binary}::{func}"))
-    print(func,GEDValues)
 
 distances = sorted(distances,key=lambda x : x[0],reverse=False)
 print("Functions with close GED values from closets to least close:")
