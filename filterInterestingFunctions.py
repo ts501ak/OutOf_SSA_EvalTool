@@ -2,6 +2,7 @@ import shared
 import argparse
 import json
 from pathlib import Path
+import numpy as np
 
 def load_json(file: Path):
     with open(str(file)) as f:
@@ -11,8 +12,6 @@ def load_json(file: Path):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--pathOverride","-p",dest="altPath",type=str,required=False,help="Path to the base direcetory")
-parser.add_argument("--minThreshold","-i",dest="min",type=float,default=0.05,required=False)
-parser.add_argument("--maxThreshold","-a",dest="max",type=float,default=0.75,required=False)
 args = parser.parse_args()
 
 if args.altPath:
@@ -20,8 +19,7 @@ if args.altPath:
 
 jobs = load_json(shared.JOBS_FILE)
 jobs = jobs["jobs"]
-close = []
-far = []
+distances = []
 excludedFuncs = 0
 
 for job in jobs:
@@ -39,23 +37,17 @@ for job in jobs:
         excludedFuncs += 1
         continue
 
-    minv = min(GEDValues)
-    maxv = max(GEDValues)
+    distances.append((np.var(GEDValues),f"{binary}::{func}"))
+    print(func,GEDValues)
 
-    if (maxv - args.min * maxv) < minv:
-        close.append((abs((maxv - maxv * args.min) - minv),f"{binary}::{func}"))
-    if (maxv - maxv * args.max) > minv:
-        far.append(((abs((maxv - maxv * args.max) - minv)),f"{binary}::{func}"))
-
-far = sorted(far,key=lambda x : x[0],reverse=True)
-#print(len(far))
-close = sorted(close,key=lambda x : x[0],reverse=True)
-#print(len(close))
+distances = sorted(distances,key=lambda x : x[0],reverse=False)
 print("Functions with close GED values from closets to least close:")
-for x in range(min(10,len(close))):
-    print("\t",close[x][1],sep="")
-
+for x in range(min(10,len(distances))):
+    print("\t",distances[x][1],sep="")
+    #print("\t",int(distances[x][0]),": ",distances[x][1],sep="")
+distances = sorted(distances,key=lambda x : x[0],reverse=True)
 print("Functions with wide spread GED values from farest to nearest:")
-for x in range(min(10,len(far))):
-    print("\t",far[x][1],sep="")
+for x in range(min(10,len(distances))):
+    print("\t",distances[x][1],sep="")
+    #print("\t",int(distances[x][0]),": ",distances[x][1],sep="")
 #print(f"{excludedFuncs} were skipped!")
