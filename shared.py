@@ -24,6 +24,16 @@ DECOMP_MEM_LIMIT_GB = 14
 GRAPH_EDIT_DISTANCE_TIMEOUT = 7 * 60 + 30 
 DECOMP_TIMEOUT_SECONDS = 10 * 60 
 
+def changeBaseDir(path :Path):
+    global BASE_DIR, DEWOLF_DIR, DATASET_DIR,LOG_FILE,SRC_DIR,BINS_DIR,JOBS_FILE
+    BASE_DIR = path
+    DEWOLF_DIR = BASE_DIR / "dewolf"
+    DATASET_DIR = BASE_DIR / "dataset"
+    LOG_FILE = DATASET_DIR / "log.txt"
+    SRC_DIR = DATASET_DIR / "src"
+    BINS_DIR = DATASET_DIR / "bins"
+    JOBS_FILE = DATASET_DIR / "jobs.json"
+
 def init_worker(limit_gb: int):
     limit_bytes = limit_gb * 1024**3
     _, hard = resource.getrlimit(resource.RLIMIT_AS)
