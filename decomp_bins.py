@@ -17,6 +17,7 @@ from shared import (
     get_bin_file,
     get_dict_file,
     get_decomp_file,
+    get_heinz_file,
     load_jobs,
 )
 
@@ -39,12 +40,14 @@ def _decompile_func(args):
     bin_path = get_bin_file(bin);
     dict_path = get_dict_file(ssa_algo, bin, func)
     decomp_path = get_decomp_file(ssa_algo, bin, func)
+    heinz_peter_path = get_heinz_file(ssa_algo, bin, func)
 
     if (dict_path.exists() and decomp_path.exists()) and not fresh:
         return
 
     success = False
     decompiler = None
+    os.environ["HEINZ_PETER"] = str(dict_path.absolute())
     os.environ["SSA_DICT_OUT"] = str(dict_path.absolute())
     with open(os.devnull, "w") as devnull:
         with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):

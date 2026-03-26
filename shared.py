@@ -72,6 +72,9 @@ def get_res_dir(ssa_algo: str) -> Path:
 def get_plot_dir(ssa_algo: str) -> Path:
     return get_base_dir(ssa_algo) / "plots"
 
+def get_heinz_dir(ssa_algo: str) -> Path:
+    return get_base_dir(ssa_algo) / "heinz_peter"
+
 def get_decomp_bin_dir(ssa_algo: str, bin_name: str) -> Path:
     return get_decomp_dir(ssa_algo) / bin_name
 
@@ -87,6 +90,9 @@ def get_dict_bin_dir(ssa_algo: str, bin_name: str) -> Path:
 def get_res_bin_dir(ssa_algo: str, bin_name: str) -> Path:
     return get_res_dir(ssa_algo) / bin_name
 
+def get_heinz_bin_dir(ssa_algo: str, bin_name: str) -> Path:
+    return get_heinz_dir(ssa_algo) / bin_name
+
 def get_decomp_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
     return get_decomp_bin_dir(ssa_algo, bin_name) / func_name
 
@@ -101,6 +107,10 @@ def get_dict_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
 
 def get_res_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
     return get_res_bin_dir(ssa_algo, bin_name) / f"{func_name}.json"
+
+def get_heinz_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
+    return get_heinz_bin_dir(ssa_algo, bin_name) / f"{func_name}.hp"
+
 
 def clear_and_create_dir(path: Path, log_file: Path = LOG_FILE):
     """
