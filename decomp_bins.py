@@ -47,8 +47,8 @@ def _decompile_func(args):
 
     success = False
     decompiler = None
-    os.environ["HEINZ_PETER"] = str(dict_path.absolute())
     os.environ["SSA_DICT_OUT"] = str(dict_path.absolute())
+    os.environ["HEINZ_PETER"] = str(heinz_peter_path.absolute())
     with open(os.devnull, "w") as devnull:
         with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
             options = Decompiler.create_options()
