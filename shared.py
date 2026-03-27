@@ -15,7 +15,7 @@ SRC_DIR = DATASET_DIR / "src"
 BINS_DIR = DATASET_DIR / "bins"
 JOBS_FILE = DATASET_DIR / "jobs.json"
 
-SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008", "simple"]
+SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008" ]
 
 NAMES_TO_IGNORE = { ".gitignore" }
 DECOMP_COMP_TRESHOLD = 0
