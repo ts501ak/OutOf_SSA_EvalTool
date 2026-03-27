@@ -55,7 +55,8 @@ def _init_dirs(bin_names: List[str]):
         clear_and_create_dir(get_decomp_func_dir(ssa_algo))
         clear_and_create_dir(get_dict_dir(ssa_algo))
         clear_and_create_dir(get_res_dir(ssa_algo))
-        clear_and_create_dir(get_heinz_dir(ssa_algo))
+        if ssa_algo == "conditional":
+            clear_and_create_dir(get_heinz_dir(ssa_algo))
 
     for bin_name in bin_names:
         for ssa_algo in SSA_ALGOS:
@@ -64,7 +65,8 @@ def _init_dirs(bin_names: List[str]):
             clear_and_create_dir(get_src_func_bin_dir(ssa_algo, bin_name))
             clear_and_create_dir(get_dict_bin_dir(ssa_algo, bin_name))
             clear_and_create_dir(get_res_bin_dir(ssa_algo, bin_name))
-            clear_and_create_dir(get_heinz_bin_dir(ssa_algo, bin_name))
+            if ssa_algo == "conditional":
+                clear_and_create_dir(get_heinz_bin_dir(ssa_algo, bin_name))
 
 
 def _prepare_jobs_for_binary(bin_name: str) -> List[Dict[str, str]]:
