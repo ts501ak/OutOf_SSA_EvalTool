@@ -10,6 +10,7 @@ from pebble import ProcessPool
 from shared import (
     DEWOLF_DIR,
     SSA_ALGOS,
+    DECOMP_LOG_FILE,
     DECOMP_MEM_LIMIT_GB,
     DECOMP_TIMEOUT_SECONDS,
     init_worker,
@@ -49,8 +50,8 @@ def _decompile_func(args):
     decompiler = None
     os.environ["SSA_DICT_OUT"] = str(dict_path.absolute())
     os.environ["HEINZ_PETER"] = str(heinz_peter_path.absolute())
-    with open(os.devnull, "w") as devnull:
-        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+    with open(DECOMP_LOG_FILE, "a") as log_file:
+        with contextlib.redirect_stdout(log_file), contextlib.redirect_stderr(log_file):
             options = Decompiler.create_options()
             options.update({"out-of-ssa-translation.mode": ssa_algo})
             decompiler = Decompiler.from_path(bin_path)

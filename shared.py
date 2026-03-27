@@ -11,6 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DEWOLF_DIR = BASE_DIR / "dewolf"
 DATASET_DIR = BASE_DIR / "dataset"
 LOG_FILE = DATASET_DIR / "log.txt"
+DECOMP_LOG_FILE = DATASET_DIR / "decomp_log.txt"
 SRC_DIR = DATASET_DIR / "src"
 BINS_DIR = DATASET_DIR / "bins"
 JOBS_FILE = DATASET_DIR / "jobs.json"
@@ -124,12 +125,16 @@ def clear_and_create_dir(path: Path, log_file: Path = LOG_FILE):
         log_and_print(f"Unable to clear dir {path}: {e}", 
                       log_file_path=log_file, print_file=sys.stderr) 
 
-def clear_log():
+def _clear_log_file(file: Path):
     try:
-        if os.path.exists(LOG_FILE):
-            os.remove(LOG_FILE)
+        if os.path.exists(file):
+            os.remove(file)
     except Exception as e:
-        print(f"Unable to remove log file {LOG_FILE}: {e}", file=sys.stderr)
+        print(f"Unable to remove log file {file}: {e}", file=sys.stderr)
+
+def clear_log():
+    _clear_log_file(LOG_FILE)
+    _clear_log_file(DECOMP_LOG_FILE)
 
 def save_jobs(jobs: List[Dict[str, str]]):
     """Saves Jobs to JSON"""
