@@ -38,7 +38,7 @@ def _decompile_func(args):
     fresh = args.get("fresh")
     ssa_algo = args.get("ssa_algo")
 
-    bin_path = get_bin_file(bin);
+    bin_path = get_bin_file(bin)
     dict_path = get_dict_file(ssa_algo, bin, func)
     decomp_path = get_decomp_file(ssa_algo, bin, func)
     heinz_peter_path = get_heinz_file(ssa_algo, bin, func)

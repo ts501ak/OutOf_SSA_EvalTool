@@ -4,6 +4,7 @@ from ast import Tuple
 import sys
 import json
 import argparse
+from binaryninja import convert_integer
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -170,6 +171,9 @@ def _make_plots(plot_dir: Path, stat_path: Path, common_files: Set[Path], ged_re
                 continue
 
             try:
+                if(stat["ged_timeouts"] != 0):
+                    pass
+                    #continue 
                 total += 1
                 funcNames.append(func)
                 
@@ -177,36 +181,36 @@ def _make_plots(plot_dir: Path, stat_path: Path, common_files: Set[Path], ged_re
                 totalGED += val_ged
                 singleGEDs.append(val_ged)
                 
-                s_zhk = stat["avg_source_zhk"]
-                d_zhk = stat["avg_decomp_zhk"]
-                m_zhk = stat["matched_zhk"]
-                nm_zhk = stat["not_matched_zhk"]
+                #s_zhk = stat["avg_source_zhk"]
+                #d_zhk = stat["avg_decomp_zhk"]
+                #m_zhk = stat["matched_zhk"]
+                #nm_zhk = stat["not_matched_zhk"]
                 
-                SourceZHK.append(s_zhk)
-                DecompZHK.append(d_zhk)
-                matchedZHK_list.append(m_zhk)
-                notMatchedZHK_list.append(nm_zhk)
-                matchedZHK_total += m_zhk
-                notMatchedZHK_total += nm_zhk
+                #SourceZHK.append(s_zhk)
+                #DecompZHK.append(d_zhk)
+                #matchedZHK_list.append(m_zhk)
+                #notMatchedZHK_list.append(nm_zhk)
+                #matchedZHK_total += m_zhk
+                #notMatchedZHK_total += nm_zhk
                 
-                total_zhk = m_zhk + nm_zhk
-                ratioMatched.append(m_zhk / total_zhk if total_zhk > 0 else 0)
+                #total_zhk = m_zhk + nm_zhk
+                #ratioMatched.append(m_zhk / total_zhk if total_zhk > 0 else 0)
 
                 SavePoints.append(stat["avg_save_points"])
-                avgZHKSize.append(stat["avg_zhk_size"])
+                #avgZHKSize.append(stat["avg_zhk_size"])
                 GEDTimeout += stat["ged_timeouts"]
                 GEDNoTimeout += stat["ged_no_timeout"]
                 avgGEDTime.append(stat["avg_ged_time"])
                 gedTimes.extend(stat["ged_times"])
-                sizeUnmatchedZHK.extend(stat["unmatched_ZHK_size"])
-                sizeMatchedZHK.extend(stat["matched_ZHK_size"])
-                matchedGED += stat["matched_ged"]
-                unmatchedGED += stat["unmatched_ged"]
-                GEDUnmatchedTimeout += stat["unmatchedTimeouts"]
-                GEDMatchedTimeout += stat["matchedTimeouts"]
+                #sizeUnmatchedZHK.extend(stat["unmatched_ZHK_size"])
+                #sizeMatchedZHK.extend(stat["matched_ZHK_size"])
+                #matchedGED += stat["matched_ged"]
+                #unmatchedGED += stat["unmatched_ged"]
+                #GEDUnmatchedTimeout += stat["unmatchedTimeouts"]
+                #GEDMatchedTimeout += stat["matchedTimeouts"]
 
             except Exception as e:
-                log_and_print(f"[-]ERROR processing {func}: {e}", stat_path, print_file=sys.stderr)
+                log_and_print(f"[-]ERROR processing {func} in {file}: {e}", stat_path, print_file=sys.stderr)
                 continue
 
         if ged_rec_time:
@@ -224,15 +228,15 @@ def _make_plots(plot_dir: Path, stat_path: Path, common_files: Set[Path], ged_re
     plot_histogramm(singleGEDs, "Histogramm der GED-Werte (Population)", "GED Wert", "Häufigkeit", True, plot_dir / "GED-Population.png")
 
     # 3. ZHK Size Comparison
-    plot_histogramm2Sets(SourceZHK, DecompZHK, "Durchschnittliche Größe der ZHK", "Größe der ZHK", "Häufigkeit", "Source-Code", "Decompilat", np.mean(avgZHKSize), plot_dir / "ZHKSizeComparison.png")
+    #plot_histogramm2Sets(SourceZHK, DecompZHK, "Durchschnittliche Größe der ZHK", "Größe der ZHK", "Häufigkeit", "Source-Code", "Decompilat", np.mean(avgZHKSize), plot_dir / "ZHKSizeComparison.png")
     
     # 4. GED Timeouts Bar Chart
     plot_bar_chart([GEDTimeout, GEDNoTimeout], ["Timeout", "no Timeout"], "Timeouts during GED calculation", plot_dir / "GED-Timeouts.png")
     
     # 5. Matching Overview
-    plot_bar_chart([np.mean(SourceZHK), np.mean(DecompZHK), np.mean(matchedZHK_list), np.mean(notMatchedZHK_list)], 
-                   ["avg #ZHK Source", "avg #ZHK Decomp", "avg matched", "avg non-matched"], 
-                   "Zusammenhangskomponenten", plot_dir / "ZHKMatching.png")
+    #plot_bar_chart([np.mean(SourceZHK), np.mean(DecompZHK), np.mean(matchedZHK_list), np.mean(notMatchedZHK_list)], 
+    #               ["avg #ZHK Source", "avg #ZHK Decomp", "avg matched", "avg non-matched"], 
+    #               "Zusammenhangskomponenten", plot_dir / "ZHKMatching.png")
     
     # 6. GED Pie Chart (Composition)
     plot_pie_chart(singleGEDs, "Anteile der Funktionen an der Gesamt-GED", plot_dir / "GED-Composition.png", funcNames, 4)
@@ -242,23 +246,23 @@ def _make_plots(plot_dir: Path, stat_path: Path, common_files: Set[Path], ged_re
         plot_scatter(singleGEDs, avgGEDTime, "Correlation: GED Value vs. Time", "GED Value", "Avg Time (s)", plot_dir / "GED_vs_Time_Scatter.png")
 
     # 8. Matching Success Ratio Histogram
-    plot_histogramm(ratioMatched, "Matching Success Ratio Distribution", "Ratio (Matched / Total ZHK)", "Frequency", True, plot_dir / "Matching_Success_Ratio.png", custom_bins=np.linspace(0,1,11))
+    #plot_histogramm(ratioMatched, "Matching Success Ratio Distribution", "Ratio (Matched / Total ZHK)", "Frequency", True, plot_dir / "Matching_Success_Ratio.png", custom_bins=np.linspace(0,1,11))
 
     # 9. Distribution of Matches an no matches per function
-    plot_histogramm2Sets(matchedZHK_list, notMatchedZHK_list, "Verteilung der Matches und Non-Matches je Funktion", "#ZHK", "Häufigkeit", "# matched ZHK", "# non-matched ZHK", None, plot_dir / "DistributionMatchesPerFunction.png", 1)
+    #plot_histogramm2Sets(matchedZHK_list, notMatchedZHK_list, "Verteilung der Matches und Non-Matches je Funktion", "#ZHK", "Häufigkeit", "# matched ZHK", "# non-matched ZHK", None, plot_dir / "DistributionMatchesPerFunction.png", 1)
 
     # 10. Histogramm of the size of matched and unmatched ZHK
-    plot_histogramm2Sets(sizeUnmatchedZHK, sizeMatchedZHK, "Größe von (nicht) gematchten ZHK", "Größe", "Häufigkeit", "Unmatched ZHK", "Matched ZHK", None, plot_dir / "VerteilungGröße(Un-)matchedZHK.png", 1, log_y=True)
+    #plot_histogramm2Sets(sizeUnmatchedZHK, sizeMatchedZHK, "Größe von (nicht) gematchten ZHK", "Größe", "Häufigkeit", "Unmatched ZHK", "Matched ZHK", None, plot_dir / "VerteilungGröße(Un-)matchedZHK.png", 1, log_y=True)
 
     # 11. Pie Chart of matched vs. unmatched GED
-    plot_pie_chart([matchedGED, unmatchedGED], "Composition of total GED", plot_dir / "GEDComposition.png", ["matched", "unmatched"], 1)
+    #plot_pie_chart([matchedGED, unmatchedGED], "Composition of total GED", plot_dir / "GEDComposition.png", ["matched", "unmatched"], 1)
 
     # 12. Pie Chart of matched vs. unmatched Timeouts
-    plot_pie_chart([GEDMatchedTimeout, GEDUnmatchedTimeout], "Matched vs. Unmatched Timeouts", plot_dir / "TimeoutsMatchedVSUnmatched.png", ["Matched Timeouts", "Unmatched Timeouts"], 1)
+    #plot_pie_chart([GEDMatchedTimeout, GEDUnmatchedTimeout], "Matched vs. Unmatched Timeouts", plot_dir / "TimeoutsMatchedVSUnmatched.png", ["Matched Timeouts", "Unmatched Timeouts"], 1)
 
     log_and_print(f"TOTAL GED: {totalGED:.2f}", stat_path)
     log_and_print(f"TOTAL FUNCTIONS EVALUATED: {total}", stat_path)
-    log_and_print(f"GLOBAL MATCHING RATE: {(matchedZHK_total / (matchedZHK_total + notMatchedZHK_total) * 100):.2f}%" if (matchedZHK_total + notMatchedZHK_total) > 0 else "N/A", stat_path)
+    #log_and_print(f"GLOBAL MATCHING RATE: {(matchedZHK_total / (matchedZHK_total + notMatchedZHK_total) * 100):.2f}%" if (matchedZHK_total + notMatchedZHK_total) > 0 else "N/A", stat_path)
 
 def get_common_res_files(): 
     common_rel_paths = None
@@ -293,7 +297,8 @@ def make_all_plots(ged_rec_times: Optional[int] = None, pathOverride = None):
             runs.append((
                 str(override_path),
                 Path("./plots"), 
-                set(override_path.glob("**/*.json"))
+                set(override_path.glob("*/*/res/*/*.json")) #for entire Dataset
+                #set(override_path.glob("res/*/*.json"))
             ))
         else:
             for ssa_algo, files in get_common_res_files(): 

@@ -8,7 +8,7 @@ import argparse
 from pebble import ProcessPool
 from multiprocessing import cpu_count
 from sim_matching import SimilarityMatching
-from dependencyGraphfromC import DependencyGraphfromCFunction
+from dependencyGraphfromC2 import DependencyGraphfromCFunction
 from shared import (
         SSA_ALGOS,
         MEM_LIMIT_GB,
@@ -41,8 +41,7 @@ def _comp_res_for_job(args):
 
     src_func_code = src_func_path.read_text()
     decomp_func_code = decomp_func_path.read_text()
-            
-    sm = SimilarityMatching(src_func_code, decomp_func_code)
+    sm = SimilarityMatching(src_func_code, decomp_func_code,func=="stbi_write_bmp_core")
     stats = sm.computeGraphEditDistance(ged_timeout)
             
     res_path.write_text(json.dumps(stats.to_dict(), indent=4))

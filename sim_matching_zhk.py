@@ -1,7 +1,7 @@
 from collections import defaultdict
 import networkx as nx
 from typing import Dict, Set
-from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
+from dependencyGraphfromC2 import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 import matplotlib.pyplot as plt
 from time import time_ns
 import processVariable
@@ -103,14 +103,22 @@ class SimilarityMatching:
     WEIGHT_PROXIMITY_DECAY = 0.1
     WEIGHT_HINT_BOOST = 0.15 
 
-    def __init__(self,  src_Code : str, decomp_Code : str):
+    def __init__(self,  src_Code : str, decomp_Code : str,printthings = False):
         self._src_Code = src_Code
         self._decomp_Code = decomp_Code
+        self.printthings = printthings
         
         self._src_graph = processVariable._DependencyGraphObj.getDependencyGraph(
                 self._src_Code)
         self._decomp_graph = processVariable._DependencyGraphObj.getDependencyGraph(
                 self._decomp_Code) 
+        if printthings:
+            for a in self._src_graph.edges():
+                print(a)
+            print("----------------")
+            for b in self._decomp_graph.edges():
+                print(b)
+            print("----------------")
 
         self._init_mapping()
         self._match_iterative()
@@ -349,6 +357,8 @@ class SimilarityMatching:
                 decompGraph = subgraphDict[zz][1][0].union(gdecompNodes)
                 stats.sizeMatchedZHK.append(len(subgraphDict[zz][0][0]))
                 stats.sizeMatchedZHK.append(len(subgraphDict[zz][1][0]))
+                if self.printthings:
+                    print("ZHK matched toghether:",srcGraph,decompGraph)
                 start = time_ns()
                 ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
                 if ged is None:
@@ -375,6 +385,8 @@ class SimilarityMatching:
                     stats.sizeMatchedZHK.append(len(bb))
                     stats.halfmatchedZhk += 1
                 decompSet.update(gdecompNodes)
+                if self.printthings:
+                    print("ZHK matched toghether:",srcSet,decompSet)
                 start = time_ns()
                 ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet), undirdecompGraph.subgraph(decompSet), node_match=areSameNode, timeout=timeout)
                 if ged is None:
@@ -400,7 +412,8 @@ class SimilarityMatching:
         
         remainsrc.update(gscrNodes)
         remaindecomp.update(gdecompNodes)
-
+        if self.printthings:
+            print("Rest:",remainsrc, remaindecomp)
         start = time_ns()
         ged = nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc), undirdecompGraph.subgraph(remaindecomp), node_match=areSameNode, timeout=timeout)
         if ged is None:

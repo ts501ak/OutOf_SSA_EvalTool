@@ -1,7 +1,7 @@
 from collections import defaultdict
 import networkx as nx
 from typing import Dict, Set
-from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
+from dependencyGraphfromC2 import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 import matplotlib.pyplot as plt
 from time import time_ns
 import processVariable
@@ -56,13 +56,36 @@ class StatisticsClass:
         print('%-24s%-20i' % ("GED Timeouts", data["ged_timeouts"]))
         print('%-24s%-20s' % ("average GED Time", str(data["avg_ged_time"]) + "s"))
 
+def plotGraph(G : nx.graph,title : str,filename : str):
+    pos = nx.kamada_kawai_layout(G)
+
+    # Plot erstellen
+    plt.figure(figsize=(8, 6))
+
+    nx.draw(
+        G,
+        pos,
+        with_labels=True,
+        node_color='lightblue',
+        node_size=800,
+        font_size=10,
+        edge_color='gray'
+    )
+
+    # Titel
+    plt.title(title)
+
+    # Plot speichern
+    plt.savefig(f"{filename}.png", dpi=300, bbox_inches='tight')
+
+
 class SimilarityMatching:
     MATCH_THRESHOLD = 0.5          
     SIG_DIST_PENALTY = 0.5 
     WEIGHT_PROXIMITY_DECAY = 0.1
     WEIGHT_HINT_BOOST = 0.15 
 
-    def __init__(self,  src_Code : str, decomp_Code : str):
+    def __init__(self,  src_Code : str, decomp_Code : str,printthings=False):
         self._src_Code = src_Code
         self._decomp_Code = decomp_Code
         
@@ -70,6 +93,15 @@ class SimilarityMatching:
                 self._src_Code)
         self._decomp_graph = processVariable._DependencyGraphObj.getDependencyGraph(
                 self._decomp_Code) 
+        if printthings:
+            plotGraph(self._src_graph,"Src-Code-Graph","SrcGraph")
+            plotGraph(self._decomp_graph,"decomp-Graph","Decomp-Graph")
+            for a in self._src_graph.edges():
+                print(a)
+            print("----------------")
+            for b in self._decomp_graph.edges():
+                print(b)
+            print("----------------")
 
         self._init_mapping()
         self._match_iterative()
