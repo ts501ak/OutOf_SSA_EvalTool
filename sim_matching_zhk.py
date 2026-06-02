@@ -97,6 +97,28 @@ class StatisticsClass:
         print('%-24s%-20i' % ("GED Timeouts", data["ged_timeouts"]))
         print('%-24s%-20s' % ("average GED Time", str(data["avg_ged_time"]) + "s"))
 
+def plotGraph(G : nx.graph,title : str,filename : str):
+    pos = nx.arf_layout(G)
+
+    # Plot erstellen
+    plt.figure(figsize=(8, 6))
+
+    nx.draw(
+        G,
+        pos,
+        with_labels=True,
+        node_color='lightblue',
+        node_size=800,
+        font_size=10,
+        edge_color='gray'
+    )
+
+    # Titel
+    plt.title(title)
+
+    # Plot speichern
+    plt.savefig(f"{filename}.png", dpi=300, bbox_inches='tight')
+
 class SimilarityMatching:
     MATCH_THRESHOLD = 0.5          
     SIG_DIST_PENALTY = 0.5 
@@ -112,7 +134,9 @@ class SimilarityMatching:
                 self._src_Code)
         self._decomp_graph = processVariable._DependencyGraphObj.getDependencyGraph(
                 self._decomp_Code) 
-        if printthings:
+        if printthings and False:
+            plotGraph(self._src_graph,"Src-Code-Graph","SrcGraph")
+            plotGraph(self._decomp_graph,"decomp-Graph","Decomp-Graph")
             for a in self._src_graph.edges():
                 print(a)
             print("----------------")
@@ -349,7 +373,7 @@ class SimilarityMatching:
 
         remainsrc = set()
         remaindecomp = set()
-
+        counter = 0
         for zz in subgraphDict.keys():
             if (len(subgraphDict[zz][0]) == 1) and (len(subgraphDict[zz][1]) == 1):
                 stats.matchedZhk += 2
@@ -357,8 +381,11 @@ class SimilarityMatching:
                 decompGraph = subgraphDict[zz][1][0].union(gdecompNodes)
                 stats.sizeMatchedZHK.append(len(subgraphDict[zz][0][0]))
                 stats.sizeMatchedZHK.append(len(subgraphDict[zz][1][0]))
-                if self.printthings:
+                if self.printthings and False:
                     print("ZHK matched toghether:",srcGraph,decompGraph)
+                    plotGraph(undirSrcGraph.subgraph(srcGraph),f"Src{counter}1o1-Code-Graph",f"Src{counter}-Code-Graph")
+                    plotGraph(undirdecompGraph.subgraph(decompGraph),f"decomp{counter}1o1-Graph",f"decomp{counter}-Graph")
+                counter += 1
                 start = time_ns()
                 ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcGraph), undirdecompGraph.subgraph(decompGraph), node_match=areSameNode, timeout=timeout)
                 if ged is None:
@@ -385,8 +412,11 @@ class SimilarityMatching:
                     stats.sizeMatchedZHK.append(len(bb))
                     stats.halfmatchedZhk += 1
                 decompSet.update(gdecompNodes)
-                if self.printthings:
+                if self.printthings and False:
                     print("ZHK matched toghether:",srcSet,decompSet)
+                    plotGraph(undirSrcGraph.subgraph(srcSet),f"Src{counter}1on-Code-Graph",f"Src{counter}-Code-Graph")
+                    plotGraph(undirdecompGraph.subgraph(decompSet),f"decomp{counter}1on-Graph",f"decomp{counter}-Graph")
+                    counter += 1
                 start = time_ns()
                 ged = nx.graph_edit_distance(undirSrcGraph.subgraph(srcSet), undirdecompGraph.subgraph(decompSet), node_match=areSameNode, timeout=timeout)
                 if ged is None:
@@ -412,8 +442,11 @@ class SimilarityMatching:
         
         remainsrc.update(gscrNodes)
         remaindecomp.update(gdecompNodes)
-        if self.printthings:
+        if self.printthings and False:
             print("Rest:",remainsrc, remaindecomp)
+            plotGraph(undirSrcGraph.subgraph(remainsrc),f"Src{counter}Rest-Code-Graph",f"Src{counter}-Code-Graph")
+            plotGraph(undirdecompGraph.subgraph(remaindecomp),f"decomp{counter}Rest-Graph",f"decomp{counter}-Graph")
+            counter += 1
         start = time_ns()
         ged = nx.graph_edit_distance(undirSrcGraph.subgraph(remainsrc), undirdecompGraph.subgraph(remaindecomp), node_match=areSameNode, timeout=timeout)
         if ged is None:

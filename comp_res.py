@@ -2,6 +2,7 @@
 
 import sys
 import json
+import traceback
 from typing import Dict, List
 import processVariable
 import argparse

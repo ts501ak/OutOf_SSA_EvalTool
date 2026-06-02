@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 import networkx as nx
 from typing import Dict, Set
-from dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
+from dependencyGraphfromC2 import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 import matplotlib.pyplot as plt
 from time import time_ns
 import processVariable

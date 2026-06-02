@@ -18,7 +18,7 @@ class DependencyGraphfromCFunction:
     def __init__(self):
 
         self._parser = ts.Parser(ts.Language(tree_sitter_c.language()))
-        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>((-|\+)?[0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>((-|\+)?[0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<trueFalse>true|false|True|False|TRUE|FALSE)|(?P<Dec3>((-|\+)?[1-9][0-9_]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
+        self.__Constant = re.compile(r"^( |\t)*(?P<num>((?P<Hex>(\+|-)?(0[x|X]([0-9]|[ABCDEF]|[abcdef])+(\.([0-9]|[ABCDEF]|[abcdef])*)?((P|p)(\+|-)?([0-9]|[ABCDEF]|[abcdef])+)?))|(?P<Dec>((-|\+)?[0-9_]*\.[0-9]+(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Dec2>((-|\+)?[0-9_]+\.[0-9]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))|(?P<Bin>(0[B|b][10]+))|(?P<NULLL>(NULL))|(?P<Oct>(0[0-7]*))|(?P<trueFalse>true|false|True|False|TRUE|FALSE)|(?P<Dec3>((-|\+)?[1-9][0-9_]*(((E|e)(\+|-)?[0-9]+)|( *i| *I| *j| *J))?))))")
 
     def getResult(self,cFunc : str) -> Result:
         """takes the code of a single function as ascii and builds the dependency graph for it"""
@@ -42,15 +42,41 @@ class DependencyGraphfromCFunction:
         self.__counter += 1
         return nodeName
 
+    def __extract_parameter_names(self, parameter_list_node: ts.Node) -> list:
+        """Extract only the parameter names (declarators), not type identifiers.
+        
+        E.g. for 'stbi__uint16 *orig, int w, int h, int channels':
+        Returns: ['orig', 'w', 'h', 'channels']
+        (not including 'stbi__uint16' which is a type name)
+        """
+        param_names = []
+        
+        # Iterate through direct children to find parameter_declaration nodes
+        for child in parameter_list_node.children:
+            if child.type == "parameter_declaration":
+                # Find the declarator field in this parameter
+                declarator = child.child_by_field_name("declarator")
+                if declarator:
+                    # The declarator can be: simple identifier, pointer_declarator, array_declarator, etc.
+                    # We need to find the identifier within it
+                    identifiers = self.find_nodes_by_type(declarator, "identifier")
+                    if identifiers:
+                        # Take the last identifier (the actual parameter name, not part of the type)
+                        param_names.append(self.get_node_text(identifiers[-1]))
+        
+        return param_names
+
     def parseTree(self):
         tree = self._parser.parse(self.__func)
         tree : ts.Tree
         curs = self.getFuncDef(tree)
         functionNode = curs.node
         #Step 1 - get function arguemtns
-        params = self.find_nodes_by_type(curs.node,"parameter_list")[0]
-        paramVars = self.find_nodes_by_type(params,"identifier")
-        self.__result.arguments = [self.get_node_text(node) for node in paramVars]
+        params_list = self.find_nodes_by_type(curs.node,"parameter_list")
+        if params_list:
+            self.__result.arguments = self.__extract_parameter_names(params_list[0])
+        else:
+            self.__result.arguments = []
         #Step 2 - get all function Calls
         calls = self.find_nodes_by_type(functionNode,"call_expression")
         for call in calls:
@@ -271,7 +297,7 @@ class DependencyGraphfromCFunction:
                 oct = oct[1:]
                 return str(float(int(oct,base=8)))
             elif nu := matO.group("NULLL"):
-                return "0"
+                return "0.0"
             elif tf:= matO.group("trueFalse"):
                 return f"{tf.upper()}(const)"
             return str(float(matO.group("num")))
