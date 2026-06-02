@@ -12,28 +12,15 @@ DEWOLF_DIR = BASE_DIR / "dewolf"
 DATASET_DIR = BASE_DIR / "dataset"
 LOG_FILE = DATASET_DIR / "log.txt"
 DECOMP_LOG_FILE = DATASET_DIR / "decomp_log.txt"
-SRC_DIR = DATASET_DIR / "src"
 BINS_DIR = DATASET_DIR / "bins"
+RES_DIR = DATASET_DIR / "res"
 JOBS_FILE = DATASET_DIR / "jobs.json"
+NAMES_TO_IGNORE = { ".gitignore" }
 
 SSA_ALGOS = ["conditional", "sreedhar", "boissinot2008" ]
 
-NAMES_TO_IGNORE = { ".gitignore" }
-DECOMP_COMP_TRESHOLD = 0
 MEM_LIMIT_GB = 10 
-DECOMP_MEM_LIMIT_GB = 14 
-GRAPH_EDIT_DISTANCE_TIMEOUT = 14 * 60 + 30 
 DECOMP_TIMEOUT_SECONDS = 10 * 60 
-
-def changeBaseDir(path :Path):
-    global BASE_DIR, DEWOLF_DIR, DATASET_DIR,LOG_FILE,SRC_DIR,BINS_DIR,JOBS_FILE
-    BASE_DIR = path
-    DEWOLF_DIR = BASE_DIR / "dewolf"
-    DATASET_DIR = BASE_DIR / "dataset"
-    LOG_FILE = DATASET_DIR / "log.txt"
-    SRC_DIR = DATASET_DIR / "src"
-    BINS_DIR = DATASET_DIR / "bins"
-    JOBS_FILE = DATASET_DIR / "jobs.json"
 
 def init_worker(limit_gb: int):
     limit_bytes = limit_gb * 1024**3
@@ -49,69 +36,17 @@ def log_and_print(message, log_file_path: Path = LOG_FILE, print_file: TextIO = 
 def get_bin_file(bin_name: str) -> Path:
     return BINS_DIR / bin_name
 
-def get_src_file(bin_name: str) -> Path:
-    return SRC_DIR / f"{bin_name}.c"
-
-def get_base_dir(ssa_algo: str) -> Path:
-    return DATASET_DIR / ssa_algo
-
-def get_decomp_dir(ssa_algo: str) -> Path:
-    return get_base_dir(ssa_algo) / "decomp"
-
-def get_src_func_dir(ssa_algo: str) -> Path:
-    return get_base_dir(ssa_algo) / "src_func"
-
-def get_decomp_func_dir(ssa_algo: str) -> Path:
-    return get_base_dir(ssa_algo) / "decomp_func"
-
-def get_dict_dir(ssa_algo: str) -> Path: 
-    return get_base_dir(ssa_algo) / "dict"
-
 def get_res_dir(ssa_algo: str) -> Path:
-    return get_base_dir(ssa_algo) / "res"
+    return RES_DIR / ssa_algo
 
-def get_plot_dir(ssa_algo: str) -> Path:
-    return get_base_dir(ssa_algo) / "plots"
-
-def get_heinz_dir(ssa_algo: str) -> Path:
-    return get_base_dir(ssa_algo) / "heinz_peter"
-
-def get_decomp_bin_dir(ssa_algo: str, bin_name: str) -> Path:
-    return get_decomp_dir(ssa_algo) / bin_name
-
-def get_src_func_bin_dir(ssa_algo: str, bin_name: str) -> Path:
-    return get_src_func_dir(ssa_algo) / bin_name
-
-def get_decomp_func_bin_dir(ssa_algo: str, bin_name: str) -> Path:
-    return get_decomp_func_dir(ssa_algo) / bin_name
-
-def get_dict_bin_dir(ssa_algo: str, bin_name: str) -> Path:
-    return get_dict_dir(ssa_algo) / bin_name 
+#def get_plot_dir(ssa_algo: str) -> Path:
+#    return get_base_dir(ssa_algo) / "plots"
 
 def get_res_bin_dir(ssa_algo: str, bin_name: str) -> Path:
     return get_res_dir(ssa_algo) / bin_name
 
-def get_heinz_bin_dir(ssa_algo: str, bin_name: str) -> Path:
-    return get_heinz_dir(ssa_algo) / bin_name
-
-def get_decomp_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
-    return get_decomp_bin_dir(ssa_algo, bin_name) / func_name
-
-def get_src_func_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
-    return get_src_func_bin_dir(ssa_algo, bin_name) / func_name
-
-def get_decomp_func_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
-    return get_decomp_func_bin_dir(ssa_algo, bin_name) / func_name
-
-def get_dict_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
-    return get_dict_bin_dir(ssa_algo, bin_name) / f"{func_name}.json"
-
 def get_res_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
     return get_res_bin_dir(ssa_algo, bin_name) / f"{func_name}.json"
-
-def get_heinz_file(ssa_algo: str, bin_name: str, func_name: str) -> Path:
-    return get_heinz_bin_dir(ssa_algo, bin_name) / f"{func_name}.hp"
-
 
 def clear_and_create_dir(path: Path, log_file: Path = LOG_FILE):
     """

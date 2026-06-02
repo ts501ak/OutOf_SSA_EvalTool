@@ -11,26 +11,15 @@ from multiprocessing import cpu_count
 
 from shared import (
     DEWOLF_DIR,
-    SRC_DIR,
     BINS_DIR,
     SSA_ALGOS,
+    RES_DIR,
     NAMES_TO_IGNORE,
     MEM_LIMIT_GB,
-    get_dict_bin_dir,
-    get_dict_dir,
     log_and_print,
     init_worker,
-    get_base_dir,
-    get_decomp_dir,
-    get_src_func_dir,
-    get_decomp_func_dir,
     get_res_dir,
-    get_decomp_bin_dir,
-    get_src_func_bin_dir,
-    get_decomp_func_bin_dir,
     get_res_bin_dir,
-    get_heinz_bin_dir,
-    get_heinz_dir,
     save_jobs,
     clear_and_create_dir,
 )
@@ -48,33 +37,16 @@ except ImportError:
 SUB_PATTERN = re.compile(r"^(?:j_)?sub_[a-f0-9]+$")
 
 def _init_dirs(bin_names: List[str]):
+    clear_and_create_dir(RES_DIR)
     for ssa_algo in SSA_ALGOS:
-        clear_and_create_dir(get_base_dir(ssa_algo))
-        clear_and_create_dir(get_decomp_dir(ssa_algo))
-        clear_and_create_dir(get_src_func_dir(ssa_algo)) 
-        clear_and_create_dir(get_decomp_func_dir(ssa_algo))
-        clear_and_create_dir(get_dict_dir(ssa_algo))
         clear_and_create_dir(get_res_dir(ssa_algo))
-        if ssa_algo == "conditional":
-            clear_and_create_dir(get_heinz_dir(ssa_algo))
 
     for bin_name in bin_names:
         for ssa_algo in SSA_ALGOS:
-            clear_and_create_dir(get_decomp_bin_dir(ssa_algo, bin_name))
-            clear_and_create_dir(get_decomp_func_bin_dir(ssa_algo, bin_name))
-            clear_and_create_dir(get_src_func_bin_dir(ssa_algo, bin_name))
-            clear_and_create_dir(get_dict_bin_dir(ssa_algo, bin_name))
             clear_and_create_dir(get_res_bin_dir(ssa_algo, bin_name))
-            if ssa_algo == "conditional":
-                clear_and_create_dir(get_heinz_bin_dir(ssa_algo, bin_name))
-
 
 def _prepare_jobs_for_binary(bin_name: str) -> List[Dict[str, str]]:
     bin_path = BINS_DIR / bin_name
-    src_path = SRC_DIR / (bin_name + ".c")
-
-    if(not src_path.exists()):
-        raise FileNotFoundError(f"src file {bin_name}.c not found!")
         
     functions = []
     with open(os.devnull, "w") as devnull:
