@@ -35,12 +35,7 @@ def main():
         default=cpu_count(),
         help=f"Number of processes to use (default: {cpu_count()})"
     )
-    parser.add_argument(
-        "-d", "--decomp-processes", 
-        type=int, 
-        default=cpu_count(),
-        help=f"Number of processes to use for the decompilation (default: {cpu_count()})"
-    )
+
     parser.add_argument(
         "-t", "--decompile-timeout", 
         type=int, 
@@ -62,7 +57,7 @@ def main():
         end_stage()
 
     start_stage("Computing Results")
-    decomp_bins(args.decomp_processes, args.decompile_timeout, args.mem_limit, args.fresh)
+    decomp_bins(args.processes, args.decompile_timeout, args.mem_limit, args.fresh)
     end_stage()
 
 if __name__ == "__main__":
