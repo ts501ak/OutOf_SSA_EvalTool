@@ -1,3 +1,4 @@
+from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -12,7 +13,9 @@ def main():
     try:
         mct = mctfunction
         argParser = argparse.ArgumentParser(description="Plot the results of the experiments")
-        argParser.add_argument("--path", "-p", type=str, help = "Path to the res Folder")
+        argParser.add_argument("--path", "-p", type=str, help = "Path to the res Folder",default=str(pathlib.Path(__file__).parent.joinpath("dataset","res")))
+        argParser.add_argument("--getTopDifferences", "-gtd", type= int,required=False, help = "Get the top n functions with the biggest differences in the number of 1 to 1 variable assignments") 
+        argParser.add_argument("--no-Plot","-np", action="store_true", help = "Do not create the plots")
 
         args = argParser.parse_args()
         if args._get_args:
@@ -27,6 +30,9 @@ def main():
             res_path.joinpath("..","Plots", alg).mkdir(exist_ok=True)
 
         algoList = []
+
+        assignmentDict = defaultdict(lambda : [])
+
         for alg in algos:
 
             path = res_path.joinpath(alg)
@@ -63,7 +69,10 @@ def main():
 
                 # Extract the relevant data
                 nvL.append(data.get("num_variables"))
-                numCopyAssigL.append(data.get("num_copy_assignments"))
+                numCopyAssigs = data.get("num_copy_assignments")
+                numCopyAssigL.append(numCopyAssigs)
+                if (args.getTopDifferences) and (numCopyAssigs is not None) and (alg in ["conditional", "sreedhar"]):
+                    assignmentDict[("/".join(str(jsonPath).split("/")[-2:])).split(".")[0]].append(numCopyAssigs)
                 totalOperatorsL.append(data.get("total_operators"))
                 distinctOperatorsL.append(data.get("distinct_operators"))
                 totalOperandsL.append(data.get("total_operands"))
@@ -112,107 +121,123 @@ def main():
             varMaxLiveDistanceL = clearNone(varMaxLiveDistanceL)
             varDisjointWebsL = clearNone(varDisjointWebsL)
 
-            plot_distribution(nvL, xlabel="Number of Variables", ylabel="Frequency", title=f"Distribution of Number of Variables for {alg}", save_path=res_path.joinpath("..","Plots", alg, "num_variables.png"))
-            plot_distribution(numCopyAssigL, xlabel="Number of Copy Assignments", ylabel="Frequency", title=f"Distribution of Number of Copy Assignments for {alg}", save_path=res_path.joinpath("..","Plots", alg, "num_copy_assignments.png"))
-            plot_distribution(halsteadVocabularyL, xlabel="Halstead Vocabulary", ylabel="Frequency", title=f"Distribution of Halstead Vocabulary for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_vocabulary.png"))
-            plot_distribution(halsteadLengthL, xlabel="Halstead Length", ylabel="Frequency", title=f"Distribution of Halstead Length for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_length.png"))
-            plot_distribution(halsteadVolumeL, xlabel="Halstead Volume", ylabel="Frequency", title=f"Distribution of Halstead Volume for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_volume.png"))
-            plot_distribution(halsteadDifficultyL, xlabel="Halstead Difficulty", ylabel="Frequency", title=f"Distribution of Halstead Difficulty for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_difficulty.png"))
-            plot_distribution(halsteadEffortL, xlabel="Halstead Effort", ylabel="Frequency", title=f"Distribution of Halstead Effort for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_effort.png"))
-            plot_distribution(halsteadBugsL, xlabel="Halstead Bugs", ylabel="Frequency", title=f"Distribution of Halstead Bugs for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_bugs.png"))
-            plot_distribution(varDefsL, xlabel="Number of Variable Definitions", ylabel="Frequency", title=f"Distribution of Number of Variable Definitions for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_defs.png"))
-            plot_distribution(varUsesL, xlabel="Number of Variable Uses", ylabel="Frequency", title=f"Distribution of Number of Variable Uses for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_uses.png"))
-            plot_distribution(varScopeL, xlabel="Number of Variable Scopes", ylabel="Frequency", title=f"Distribution of Number of Variable Scopes for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_scopes.png"))
-            plot_distribution(varDistanceL, xlabel="Variable Live Range Distance", ylabel="Frequency", title=f"Distribution of Variable Live Range Distance for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_live_range_distance.png"))
-            plot_distribution(varMaxLiveDistanceL, xlabel="Variable Max Live Range Distance", ylabel="Frequency", title=f"Distribution of Variable Max Live Range Distance for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_max_live_range_distance.png"))
-            plot_distribution(varDisjointWebsL, xlabel="Number of Disjoint Webs", ylabel="Frequency", title=f"Distribution of Number of Disjoint Webs for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_disjoint_webs.png"))
+            if not args.no_Plot:
+                plot_distribution(nvL, xlabel="Number of Variables", ylabel="Frequency", title=f"Distribution of Number of Variables for {alg}", save_path=res_path.joinpath("..","Plots", alg, "num_variables.png"))
+                plot_distribution(numCopyAssigL, xlabel="Number of Copy Assignments", ylabel="Frequency", title=f"Distribution of Number of Copy Assignments for {alg}", save_path=res_path.joinpath("..","Plots", alg, "num_copy_assignments.png"))
+                plot_distribution(halsteadVocabularyL, xlabel="Halstead Vocabulary", ylabel="Frequency", title=f"Distribution of Halstead Vocabulary for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_vocabulary.png"))
+                plot_distribution(halsteadLengthL, xlabel="Halstead Length", ylabel="Frequency", title=f"Distribution of Halstead Length for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_length.png"))
+                plot_distribution(halsteadVolumeL, xlabel="Halstead Volume", ylabel="Frequency", title=f"Distribution of Halstead Volume for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_volume.png"))
+                plot_distribution(halsteadDifficultyL, xlabel="Halstead Difficulty", ylabel="Frequency", title=f"Distribution of Halstead Difficulty for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_difficulty.png"))
+                plot_distribution(halsteadEffortL, xlabel="Halstead Effort", ylabel="Frequency", title=f"Distribution of Halstead Effort for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_effort.png"))
+                plot_distribution(halsteadBugsL, xlabel="Halstead Bugs", ylabel="Frequency", title=f"Distribution of Halstead Bugs for {alg}", save_path=res_path.joinpath("..","Plots", alg, "halstead_bugs.png"))
+                plot_distribution(varDefsL, xlabel="Number of Variable Definitions", ylabel="Frequency", title=f"Distribution of Number of Variable Definitions for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_defs.png"))
+                plot_distribution(varUsesL, xlabel="Number of Variable Uses", ylabel="Frequency", title=f"Distribution of Number of Variable Uses for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_uses.png"))
+                plot_distribution(varScopeL, xlabel="Number of Variable Scopes", ylabel="Frequency", title=f"Distribution of Number of Variable Scopes for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_scopes.png"))
+                plot_distribution(varDistanceL, xlabel="Variable Live Range Distance", ylabel="Frequency", title=f"Distribution of Variable Live Range Distance for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_live_range_distance.png"))
+                plot_distribution(varMaxLiveDistanceL, xlabel="Variable Max Live Range Distance", ylabel="Frequency", title=f"Distribution of Variable Max Live Range Distance for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_max_live_range_distance.png"))
+                plot_distribution(varDisjointWebsL, xlabel="Number of Disjoint Webs", ylabel="Frequency", title=f"Distribution of Number of Disjoint Webs for {alg}", save_path=res_path.joinpath("..","Plots", alg, "var_disjoint_webs.png"))
 
             algoList.append([nvL, numCopyAssigL, totalOperatorsL, distinctOperatorsL, totalOperandsL, distinctOperandsL, halsteadVocabularyL, halsteadLengthL, halsteadVolumeL, halsteadDifficultyL, halsteadEffortL, halsteadBugsL, varDefsL, varUsesL, varScopeL, varDistanceL, varMaxLiveDistanceL, varDisjointWebsL])
             #                  0      1               2                3                   4               5                   6                   7               8                   9                   10                  11        12        13        14          15              16                 17
+        delList = []
+        if args.getTopDifferences and int(args.getTopDifferences) > 0:
+            for key in assignmentDict.keys():
+                if len(assignmentDict[key]) == 2:
+                    assignmentDict[key] = abs(assignmentDict[key][0] - assignmentDict[key][1])
+                else:
+                    delList.append(key)
+            for key in delList:
+                    del assignmentDict[key]
+            if len(assignmentDict) > 1:
+                print(f"Number\tDiff\t -> \tBinary/Function")
+                topDifferences = sorted(assignmentDict.items(), key=lambda x: x[1], reverse=True)[:args.getTopDifferences]
+                for x in range(min(int(args.getTopDifferences), len(assignmentDict))):
+                    print(f"{x+1}.\t{topDifferences[x][1]}\t -> \t{topDifferences[x][0]}")
 
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][0]), mct(algoList[0][1])],
-                [mct(algoList[1][0]), mct(algoList[1][1])],
-                [mct(algoList[2][0]), mct(algoList[2][1])],
-            ],
-            value_labels=["Number of Variables", "Number of Copy Assignments"],
-            title="Comparison of SSA Algorithms - Variables and Copy Assignments",
-            save_path=res_path.joinpath("..","Plots", "comparisonVariablesCopyAssignments.png")
-        )
+        if not args.no_Plot:
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][0]), mct(algoList[0][1])],
+                    [mct(algoList[1][0]), mct(algoList[1][1])],
+                    [mct(algoList[2][0]), mct(algoList[2][1])],
+                ],
+                value_labels=["Number of Variables", "Number of Copy Assignments"],
+                title="Comparison of SSA Algorithms - Variables and Copy Assignments",
+                save_path=res_path.joinpath("..","Plots", "comparisonVariablesCopyAssignments.png")
+            )
 
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][2]), mct(algoList[0][3]), mct(algoList[0][4]),mct(algoList[0][5])],
-                [mct(algoList[1][2]), mct(algoList[1][3]), mct(algoList[1][4]),mct(algoList[1][5])],
-                [mct(algoList[2][2]), mct(algoList[2][3]), mct(algoList[2][4]),mct(algoList[2][5])],
-            ],
-            value_labels=["Total Operators", "Distinct Operators", "Total Operands", "Distinct Operands"],
-            title="Comparison of SSA Algorithms - Halstead Components",
-            save_path=res_path.joinpath("..","Plots", "comparisonHalsteadComponents.png")
-        )
-        
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][6]), mct(algoList[0][7]), mct(algoList[0][9]),mct(algoList[0][11])],
-                [mct(algoList[1][6]), mct(algoList[1][7]), mct(algoList[1][9]),mct(algoList[1][11])],
-                [mct(algoList[2][6]), mct(algoList[2][7]), mct(algoList[2][9]),mct(algoList[2][11])],
-            ],
-            value_labels=["Halstead Vocabulary", "Halstead Length", "Halstead Difficulty", "Halstead Bugs"],
-            title="Comparison of SSA Algorithms - Halstead Metrics",
-            save_path=res_path.joinpath("..","Plots", "comparisonHalsteadMetrics.png")
-        )
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][2]), mct(algoList[0][3]), mct(algoList[0][4]),mct(algoList[0][5])],
+                    [mct(algoList[1][2]), mct(algoList[1][3]), mct(algoList[1][4]),mct(algoList[1][5])],
+                    [mct(algoList[2][2]), mct(algoList[2][3]), mct(algoList[2][4]),mct(algoList[2][5])],
+                ],
+                value_labels=["Total Operators", "Distinct Operators", "Total Operands", "Distinct Operands"],
+                title="Comparison of SSA Algorithms - Halstead Components",
+                save_path=res_path.joinpath("..","Plots", "comparisonHalsteadComponents.png")
+            )
+            
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][6]), mct(algoList[0][7]), mct(algoList[0][9]),mct(algoList[0][11])],
+                    [mct(algoList[1][6]), mct(algoList[1][7]), mct(algoList[1][9]),mct(algoList[1][11])],
+                    [mct(algoList[2][6]), mct(algoList[2][7]), mct(algoList[2][9]),mct(algoList[2][11])],
+                ],
+                value_labels=["Halstead Vocabulary", "Halstead Length", "Halstead Difficulty", "Halstead Bugs"],
+                title="Comparison of SSA Algorithms - Halstead Metrics",
+                save_path=res_path.joinpath("..","Plots", "comparisonHalsteadMetrics.png")
+            )
 
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][8])],
-                [mct(algoList[1][8])],
-                [mct(algoList[2][8])],
-            ],
-            value_labels=["Halstead Volume"],
-            title="Comparison of SSA Algorithms - Halstead Volume",
-            save_path=res_path.joinpath("..","Plots", "comparisonHalsteadVolume.png")
-        )
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][8])],
+                    [mct(algoList[1][8])],
+                    [mct(algoList[2][8])],
+                ],
+                value_labels=["Halstead Volume"],
+                title="Comparison of SSA Algorithms - Halstead Volume",
+                save_path=res_path.joinpath("..","Plots", "comparisonHalsteadVolume.png")
+            )
 
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][10])],
-                [mct(algoList[1][10])],
-                [mct(algoList[2][10])],
-            ],
-            value_labels=["Halstead Effort"],
-            title="Comparison of SSA Algorithms - Halstead Effort",
-            save_path=res_path.joinpath("..","Plots", "comparisonHalsteadEffort.png")
-        )
-        
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][12]), mct(algoList[0][13])],
-                [mct(algoList[1][12]), mct(algoList[1][13])],
-                [mct(algoList[2][12]), mct(algoList[2][13])],
-            ],
-            value_labels=["Average Variable Definitions", "Average Variable Uses"],
-            title="Comparison of SSA Algorithms - Variable Definitions and Uses",
-            save_path=res_path.joinpath("..","Plots", "comparisonVariableDefsUses.png")
-        )
-        
-        plot_categorical_values(
-            categories=algos,
-            values_per_category=[
-                [mct(algoList[0][14]), mct(algoList[0][15]), mct(algoList[0][16]),mct(algoList[0][17])],
-                [mct(algoList[1][14]), mct(algoList[1][15]), mct(algoList[1][16]),mct(algoList[1][17])],
-                [mct(algoList[2][14]), mct(algoList[2][15]), mct(algoList[2][16]),mct(algoList[2][17])],
-            ],
-            value_labels=["Average Variable Scope", "Average Variable Live Range Distance", "Average Variable Max Live Range Distance", "Average Number of Disjoint Webs"],
-            title="Comparison of SSA Algorithms - Scopes and Live Ranges",
-            save_path=res_path.joinpath("..","Plots", "comparisonVariableScopesLiveRanges.png")
-        )
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][10])],
+                    [mct(algoList[1][10])],
+                    [mct(algoList[2][10])],
+                ],
+                value_labels=["Halstead Effort"],
+                title="Comparison of SSA Algorithms - Halstead Effort",
+                save_path=res_path.joinpath("..","Plots", "comparisonHalsteadEffort.png")
+            )
+            
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][12]), mct(algoList[0][13])],
+                    [mct(algoList[1][12]), mct(algoList[1][13])],
+                    [mct(algoList[2][12]), mct(algoList[2][13])],
+                ],
+                value_labels=["Average Variable Definitions", "Average Variable Uses"],
+                title="Comparison of SSA Algorithms - Variable Definitions and Uses",
+                save_path=res_path.joinpath("..","Plots", "comparisonVariableDefsUses.png")
+            )
+            
+            plot_categorical_values(
+                categories=algos,
+                values_per_category=[
+                    [mct(algoList[0][14]), mct(algoList[0][15]), mct(algoList[0][16]),mct(algoList[0][17])],
+                    [mct(algoList[1][14]), mct(algoList[1][15]), mct(algoList[1][16]),mct(algoList[1][17])],
+                    [mct(algoList[2][14]), mct(algoList[2][15]), mct(algoList[2][16]),mct(algoList[2][17])],
+                ],
+                value_labels=["Average Variable Scope", "Average Variable Live Range Distance", "Average Variable Max Live Range Distance", "Average Number of Disjoint Webs"],
+                title="Comparison of SSA Algorithms - Scopes and Live Ranges",
+                save_path=res_path.joinpath("..","Plots", "comparisonVariableScopesLiveRanges.png")
+            )
     except Exception as e:
         print(f"Error: {e}")
         traceback.print_exception(type(e), e, e.__traceback__)
