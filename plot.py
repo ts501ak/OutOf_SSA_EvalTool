@@ -72,7 +72,7 @@ def main():
                 numCopyAssigs = data.get("num_copy_assignments")
                 numCopyAssigL.append(numCopyAssigs)
                 if (args.getTopDifferences) and (numCopyAssigs is not None) and (alg in ["conditional", "sreedhar"]):
-                    assignmentDict[("/".join(str(jsonPath).split("/")[-2:])).split(".")[0]].append(numCopyAssigs)
+                    assignmentDict[("/".join(str(jsonPath).split("/")[-2:])).split(".")[0]].append(numCopyAssigs)       #<--
                 totalOperatorsL.append(data.get("total_operators"))
                 distinctOperatorsL.append(data.get("distinct_operators"))
                 totalOperandsL.append(data.get("total_operands"))
