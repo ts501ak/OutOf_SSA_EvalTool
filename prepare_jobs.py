@@ -92,6 +92,8 @@ def _prepare_jobs_for_binary(bin_name: str) -> List[Dict[str, str]]:
     return ret
 
 def prepare_jobs(worker_count: int, mem_limit: int):
+    """Extracts all function names from the binaries in a multithreaded manner and saves them to jobs.json."""
+
     jobs = []
     bin_names = [f.name for f in BINS_DIR.iterdir() if f.name not in NAMES_TO_IGNORE]
 

@@ -228,6 +228,7 @@ def _process_function_pair(args):
         raise e
 
 def process_functions(worker_count: int, mem_limit: int, fresh: bool):
+    """Extracts function definitions from source and decompiled files in a multithreaded manner."""
     jobs = load_jobs()
     if(not jobs):
         log_and_print("[-] No jobs found! Try running prepare_jobs.py", print_file=sys.stderr)

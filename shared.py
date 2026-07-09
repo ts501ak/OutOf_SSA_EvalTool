@@ -6,6 +6,8 @@ import resource
 from pathlib import Path
 from typing import Dict, List, Optional, TextIO
 
+#shared logic, constants and directory structure for the decompiler pipeline
+
 BASE_DIR = Path(__file__).resolve().parent
 
 DEWOLF_DIR = BASE_DIR / "dewolf"

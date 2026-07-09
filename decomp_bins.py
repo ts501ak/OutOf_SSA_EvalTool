@@ -64,6 +64,7 @@ def _decompile_func(args):
     decomp_path.write_text(code)
 
 def decomp_bins(worker_count: int, decompile_timeout: int, mem_limit: int, fresh: bool):
+    """Decompile all functions in the jobs.json file using the specified number of workers, timeout, and memory limit."""
     jobs = load_jobs()
     if(not jobs):
         log_and_print("[-] No jobs found! Try running prepare_jobs.py", print_file=sys.stderr)
@@ -79,7 +80,7 @@ def decomp_bins(worker_count: int, decompile_timeout: int, mem_limit: int, fresh
                 try:
                     next(iterator)
                 except StopIteration:
-                    break;
+                    break
                 except TimeoutError:
                     bin = job["bin"]
                     func = job["func"]
