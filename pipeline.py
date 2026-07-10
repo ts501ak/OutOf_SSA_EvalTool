@@ -5,7 +5,7 @@ from prepare_jobs import prepare_jobs
 from decomp_bins import decomp_bins 
 from multiprocessing import cpu_count
 
-from shared import (
+from analyzer.shared import (
     MEM_LIMIT_GB,
     DECOMP_TIMEOUT_SECONDS,
     log_and_print,

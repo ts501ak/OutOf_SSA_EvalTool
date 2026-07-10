@@ -6,7 +6,7 @@ import resource
 from pathlib import Path
 from typing import Dict, List, Optional, TextIO
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEWOLF_DIR = BASE_DIR / "dewolf"
 DATASET_DIR = BASE_DIR / "dataset"
@@ -14,6 +14,8 @@ LOG_FILE = DATASET_DIR / "log.txt"
 DECOMP_LOG_FILE = DATASET_DIR / "decomp_log.txt"
 BINS_DIR = DATASET_DIR / "bins"
 RES_DIR = DATASET_DIR / "res"
+CMP_DIR = DATASET_DIR / "cmp"
+PLOT_DIR = DATASET_DIR / "plots"
 JOBS_FILE = DATASET_DIR / "jobs.json"
 NAMES_TO_IGNORE = { ".gitignore" }
 
