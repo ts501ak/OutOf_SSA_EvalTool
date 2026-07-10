@@ -64,18 +64,18 @@ Visualizes decompilation results and compares SSA algorithms.
 ```
 dataset/
 ├── bins/          # Place your binary files here
-│   ├── res/           # Decompilation results (generated)
-│   │   └── <algo>/
-│   │       └── <binary>/
-│   │           └── <function>.c
-│   ├── cmp/           # Comparison outputs (generated)
-│   │   └── <algo1>_<algo2>/
-│   │       └── *_differences.txt
-│   ├── plots/         # Visualization outputs (generated)
-│   │   └── <algo>/
-│   │       └── *.png
-│   ├── log.txt        # Pipeline log
-│   └── decomp_log.txt # Decompilation log
+├── res/           # Decompilation results (generated)
+│   └── <algo>/
+│       └── <binary>/
+│           └── <function>.c
+├── cmp/           # Comparison outputs (generated)
+│   └── <algo1>_<algo2>/
+│       └── *_differences.txt
+├── plots/         # Visualization outputs (generated)
+│   └── <algo>/
+│       └── *.png
+├── log.txt        # Pipeline log
+└── decomp_log.txt # Decompilation log
 ```
 
 ## Metrics
