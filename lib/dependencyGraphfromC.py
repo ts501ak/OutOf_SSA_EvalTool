@@ -1,12 +1,10 @@
-from copy import deepcopy
-from typing import ByteString, DefaultDict
-import networkx as nx
 import re
-import matplotlib.pyplot as plt
-import processVariable
-import tree_sitter as ts
+import networkx as nx
 import tree_sitter_c
-import sys
+import tree_sitter as ts
+from copy import deepcopy
+from lib import processVariable
+from typing import DefaultDict
 
 class Result:
     def __init__(self):
@@ -393,28 +391,3 @@ class CompareGraphs:
 
             for dictKey, Index in sorted(rmKeysc2,key= lambda x : x[1],reverse=True):
                 self.c2Result.callDict[dictKey].pop(Index)
-
-
-def main():
-    processVariable._DependencyGraphObj = DependencyGraphfromCFunction()
-    with open("/home/jannis/Desktop/ex1.txt") as f:
-        c1 = f.read()
-        #print(c1)
-    #with open("/home/jannis/Desktop/ex2.txt") as f:
-    #    c2 = f.read()
-    #    print(c2)
-
-    cc1 = DependencyGraphfromCFunction()
-    dg = cc1.getDependencyGraph(c1)
-    for edge in dg.edges():
-        pass
-        #print(edge)
-
-    compObj = CompareGraphs(c1,c1)
-    a,b,c = compObj.getSameVars()
-    print(a.items())
-    print(b.items())
-    print(c.items())
-
-if __name__ == "__main__":
-    main()

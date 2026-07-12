@@ -1,8 +1,10 @@
-import shared
+#!/usr/bin/env python3
+
 import argparse
 import json
 from pathlib import Path
 import numpy as np
+from lib import shared
 
 def load_json(file: Path):
     with open(str(file)) as f:

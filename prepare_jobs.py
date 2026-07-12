@@ -9,7 +9,7 @@ from typing import Dict, List
 from pebble import ProcessPool
 from multiprocessing import cpu_count
 
-from shared import (
+from lib.shared import (
     DEWOLF_DIR,
     SRC_DIR,
     BINS_DIR,

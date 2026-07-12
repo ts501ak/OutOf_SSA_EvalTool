@@ -6,7 +6,7 @@ import argparse
 from pebble import ProcessPool
 from multiprocessing import cpu_count
 
-from shared import (
+from lib.shared import (
     SSA_ALGOS,
     MEM_LIMIT_GB,
     load_jobs,

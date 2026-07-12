@@ -1,3 +1,0 @@
-import dependencyGraphfromC2
-_DependencyGraphObj = None
-_DependencyGraphObj : dependencyGraphfromC2.DependencyGraphfromCFunction

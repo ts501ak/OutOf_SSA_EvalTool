@@ -1,12 +1,15 @@
-import argparse
+#!/usr/bin/env python3 
+
 import os
-from collections import defaultdict
+import argparse
 import networkx as nx
-from typing import Dict, Set
-from dependencyGraphfromC2 import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
 import matplotlib.pyplot as plt
 from time import time_ns
-import processVariable
+from typing import Dict, Set
+from lib import processVariable
+from collections import defaultdict
+from lib.dependencyGraphfromC import DependencyGraphfromCFunction, CompareGraphs, mergeDicts
+
 
 def save_zhk_plot(graph: nx.Graph, filename: str, title: str):
     """Saves a well-spaced layout of a ZHK subgraph."""
@@ -171,8 +174,6 @@ class SimilarityMatching:
         compObj = CompareGraphs(self._src_Code,self._decomp_Code,self._src_graph,self._decomp_graph)
         safe_matches, unsafe_matches, constants = compObj.getSameVars()
         del compObj
-        __import__('pprint').pprint(constants)
-        exit(0)
         self.constants = constants
 
         for src_var, d_var in safe_matches.items():

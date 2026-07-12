@@ -7,7 +7,7 @@ from process_functions import process_functions
 from comp_res import comp_res
 from multiprocessing import cpu_count
 
-from shared import (
+from lib.shared import (
     MEM_LIMIT_GB,
     DECOMP_MEM_LIMIT_GB,
     DECOMP_TIMEOUT_SECONDS,

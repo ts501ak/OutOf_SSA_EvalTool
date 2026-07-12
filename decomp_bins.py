@@ -7,7 +7,7 @@ import contextlib
 from multiprocessing import cpu_count
 from pebble import ProcessPool
 
-from shared import (
+from lib.shared import (
     DEWOLF_DIR,
     SSA_ALGOS,
     DECOMP_LOG_FILE,

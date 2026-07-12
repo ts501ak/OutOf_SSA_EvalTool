@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, TextIO
 
 #shared logic, constants and directory structure for the decompiler pipeline
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEWOLF_DIR = BASE_DIR / "dewolf"
 DATASET_DIR = BASE_DIR / "dataset"

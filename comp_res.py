@@ -2,15 +2,17 @@
 
 import sys
 import json
-import traceback
-from typing import Dict, List
-import processVariable
 import argparse
+from typing import Dict, List
 from pebble import ProcessPool
+from traceback import format_tb
+from lib import processVariable
 from multiprocessing import cpu_count
-from sim_matching import SimilarityMatching
-from dependencyGraphfromC2 import DependencyGraphfromCFunction
-from shared import (
+from lib.compareDicts import are_the_same
+from lib.sim_matching import SimilarityMatching
+from lib.dependencyGraphfromC import DependencyGraphfromCFunction
+
+from lib.shared import (
         SSA_ALGOS,
         MEM_LIMIT_GB,
         GRAPH_EDIT_DISTANCE_TIMEOUT,
@@ -23,8 +25,6 @@ from shared import (
         get_src_func_file,
         get_decomp_func_file,
 )
-from compareDicts import are_the_same
-from traceback import format_tb
 
 def _comp_res_for_job(args):
     bin = args.get("bin")
@@ -42,9 +42,9 @@ def _comp_res_for_job(args):
 
     src_func_code = src_func_path.read_text()
     decomp_func_code = decomp_func_path.read_text()
-    sm = SimilarityMatching(src_func_code, decomp_func_code,func=="stbi_write_bmp_core")
+    sm = SimilarityMatching(src_func_code, decomp_func_code)
     stats = sm.computeGraphEditDistance(ged_timeout)
-            
+                
     res_path.write_text(json.dumps(stats.to_dict(), indent=4))
 
 def _init_worker(limit_gb: int):
