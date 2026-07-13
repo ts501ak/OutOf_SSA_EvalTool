@@ -18,7 +18,6 @@ from lib.shared import (
     get_bin_file,
     get_dict_file,
     get_decomp_file,
-    get_heinz_file,
     load_jobs,
 )
 
@@ -41,7 +40,6 @@ def _decompile_func(args):
     bin_path = get_bin_file(bin)
     dict_path = get_dict_file(ssa_algo, bin, func)
     decomp_path = get_decomp_file(ssa_algo, bin, func)
-    heinz_peter_path = get_heinz_file(ssa_algo, bin, func)
 
     if (dict_path.exists() and decomp_path.exists()) and not fresh:
         return
@@ -49,7 +47,6 @@ def _decompile_func(args):
     success = False
     decompiler = None
     os.environ["SSA_DICT_OUT"] = str(dict_path.absolute())
-    os.environ["HEINZ_PETER"] = str(heinz_peter_path.absolute())
     with open(DECOMP_LOG_FILE, "a") as log_file:
         with contextlib.redirect_stdout(log_file), contextlib.redirect_stderr(log_file):
             options = Decompiler.create_options()

@@ -43,12 +43,12 @@ for job in jobs:
 
 distances = sorted(distances,key=lambda x : x[0],reverse=False)
 print("Functions with close GED values from closets to least close:")
-for x in range(min(10,len(distances))):
+for x in range(len(distances)):
     print("\t",distances[x][1],sep="")
     #print("\t",int(distances[x][0]),": ",distances[x][1],sep="")
 distances = sorted(distances,key=lambda x : x[0],reverse=True)
 print("Functions with wide spread GED values from farest to nearest:")
-for x in range(min(10,len(distances))):
+for x in range(len(distances)):
     print("\t",distances[x][1],sep="")
     #print("\t",int(distances[x][0]),": ",distances[x][1],sep="")
 #print(f"{excludedFuncs} were skipped!")
