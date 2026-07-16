@@ -97,7 +97,6 @@ dataset/
 │   ├── dict/             # SSA variable dictionaries (JSON)
 │   ├── res/              # Comparison results
 │   ├── plots/            # Visualizations
-│   └── heinz_peter/      # Conditional-specific outputs
 ├── sreedhar/      # Algorithm outputs (same structure)
 └── boissinot2008/ # Algorithm outputs (same structure)
 ```
