@@ -111,9 +111,12 @@ dataset/
 - `unmatched_ged` - GED for unmatched components
 
 ### Structural Metrics
-- `total_nodes1`, `total_nodes2` - Node counts
-- `anz_zhk1`, `anz_zhk2` - Number of ZHKs
-- `matched_zhk`, `halfmatched_zhk` - Matching counts
+- `total_nodes1` - Node count src graph
+- `total_nodes2` - Node count decomp graph
+- `anz_zhk1` - Number of ZHKs in src grpah
+- `anz_zhk2` - Number of ZHKs in decomp graph
+- `matched_zhk` - Exact ZHK matches
+- `halfmatched_zhk` - ZHK matches 
 
 ### Performance
 - `time_needed` - Processing time
